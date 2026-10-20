@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Clearance Delivery Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-deep:#10141a;
+  --bg-panel:#1b222c;
+  --bezel:#2a323f;
+  --bezel-hi:#3a4454;
+  --amber:#f5a623;
+  --amber-dim:#7a5a1e;
+  --amber-glow:rgba(245,166,35,0.35);
+  --text-primary:#e7e4dc;
+  --text-muted:#8b93a1;
+  --teal:#3fa7a0;
+  --focus:#f5a623;
+  --alert:#e0705f;
+  /* app-specific tokens go below this line, with a comment */
+  --ok:#5cc489;        /* Clearance Delivery: readback element passed */
+  --pad-bg:#141a22;    /* Clearance Delivery: CRAFT copy pad */
+}
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top, 0px);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+}
+*,*::before,*::after{ box-sizing:inherit; }
+html{
+  background:var(--bg-deep);
+  overscroll-behavior:none;
+  scroll-padding-top:env(safe-area-inset-top, 0px);
+  color-scheme:dark;
+}
+body{
+  overflow-anchor:none;   /* the copy pad keeps its own place (see PAD ANCHOR) */
+  margin:0;
+  min-height:100vh;
+  overscroll-behavior:none;
+  background:radial-gradient(ellipse at 50% 0%, #171d26 0%, var(--bg-deep) 60%);
+  font-family:'IBM Plex Sans', sans-serif;
+  color:var(--text-primary);
+  padding:12px 10px calc(110px + env(safe-area-inset-bottom, 0px));   /* room for the Push to talk dock */
+}
+.mono{ font-family:'IBM Plex Mono', monospace; }
+.rig{ width:100%; max-width:640px; margin:0 auto; }
+
+.btn{
+  font:500 13px 'IBM Plex Sans', sans-serif; padding:8px 13px; border-radius:6px;
+  border:1px solid var(--bezel-hi); background:transparent; color:var(--text-muted); cursor:pointer;
+  transition:color .15s ease, border-color .15s ease;
+}
+.btn:hover{ color:var(--amber); border-color:var(--amber); }
+.btn:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+.btn.primary{ color:var(--amber); border-color:var(--amber-dim); background:rgba(245,166,35,0.08); }
+.btn:disabled{ opacity:.4; cursor:default; }
+.btn:disabled:hover{ color:var(--text-muted); border-color:var(--bezel-hi); }
+.btn.sm{ padding:5px 9px; font-size:12px; }
+
+.title-row{
+  display:flex; align-items:baseline; justify-content:space-between;
+  margin-bottom:2px; padding:0 4px;
+}
+.title-row h1{ font-size:19px; font-weight:600; margin:0; letter-spacing:0.01em; }
+.title-row .ver{ font-size:11px; color:var(--text-muted); }
+.handoff-note{ position:sticky; top:0; z-index:50; margin:0 0 12px; padding:10px 14px; background:var(--bg-panel); border:1px solid var(--teal); border-radius:6px; color:var(--text-primary); font-size:13px; }
+.purpose-line{
+  font-size:12.5px; color:var(--teal);
+  margin:4px 4px 8px; line-height:1.45;
+}
+.purpose-label{ color:var(--text-primary); }
+
+/* ---- app ---- */
+.panel{ display:flex; flex-direction:column; gap:8px; }
+.step{
+  background:var(--bg-panel); border:1px solid var(--bezel); border-radius:10px;
+  padding:9px 11px 11px;
+}
+.step-head{ display:flex; align-items:center; gap:8px; margin-bottom:7px; min-height:24px; }
+.step-num{
+  font:600 11px 'IBM Plex Mono', monospace; color:var(--bg-deep); background:var(--amber);
+  border-radius:4px; padding:1px 6px;
+}
+.step-title{ font-size:14px; font-weight:600; }
+.step-sub{ font-size:11.5px; color:var(--text-muted); margin-left:auto; text-align:right; }
+.step-head .ptt{ margin-left:auto; }
+
+.grid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px 8px; }
+.grid .full{ grid-column:1 / -1; }
+label.f{ display:flex; flex-direction:column; gap:2px; font-size:10.5px; color:var(--text-muted);
+  text-transform:uppercase; letter-spacing:.06em; }
+input.t, select.t, textarea.t{
+  font:400 16px 'IBM Plex Mono', monospace; color:var(--text-primary);
+  background:var(--bg-deep); border:1px solid var(--bezel-hi); border-radius:6px;
+  padding:6px 8px; width:100%; min-width:0;
+}
+select.t{ font-family:'IBM Plex Sans', sans-serif; font-size:16px; }
+input.t:focus, select.t:focus, textarea.t:focus{ outline:none; border-color:var(--amber); }
+textarea.t{ resize:vertical; min-height:0; }
+.apname{ font:400 11.5px 'IBM Plex Sans', sans-serif; color:var(--teal); text-transform:none; letter-spacing:0; min-height:15px; }
+.apname.warn{ color:var(--alert); }
+.hint{ font-size:11.5px; color:var(--text-muted); line-height:1.4; margin-top:4px; }
+.warn{ color:var(--alert); }
+.route-chip{ font:500 12.5px 'IBM Plex Mono', monospace; color:var(--teal); word-break:break-word; }
+.hidden{ display:none !important; }
+.chk{ display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-primary); cursor:pointer; }
+.chk input{ width:17px; height:17px; accent-color:var(--amber); flex:none; }
+.chk small{ color:var(--text-muted); font-size:11.5px; }
+
+details.set{ margin-top:8px; border-top:1px solid var(--bezel); padding-top:7px; }
+details.set summary{ cursor:pointer; font-size:12.5px; color:var(--text-muted); }
+details.set[open] summary{ color:var(--amber); margin-bottom:8px; }
+.slider{ display:grid; grid-template-columns:66px minmax(0,1fr) 50px; align-items:center; gap:8px; margin:4px 0; }
+.slider span:first-child{ font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; }
+.slider output{ font:500 12px 'IBM Plex Mono', monospace; color:var(--amber); text-align:right; }
+input[type=range]{ width:100%; accent-color:var(--amber); }
+.presets{ display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 4px 74px; }
+
+.radio{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:#0c1015; border:1px solid var(--bezel-hi); border-radius:8px; padding:7px 11px; margin-bottom:8px;
+}
+.radio .lbl{ font-size:10px; color:var(--text-muted); letter-spacing:.08em; text-transform:uppercase; }
+.radio .freq{ font:600 21px 'IBM Plex Mono', monospace; color:var(--amber); text-shadow:0 0 8px var(--amber-glow); }
+.radio .fac{ font:500 12px 'IBM Plex Mono', monospace; color:var(--text-primary); text-align:right; text-transform:uppercase; }
+.rx{ width:9px; height:9px; border-radius:50%; background:var(--bezel-hi); display:inline-block; margin-right:6px; vertical-align:middle; }
+.rx.on{ background:var(--ok); box-shadow:0 0 8px var(--ok); }
+.rx.tx{ background:var(--alert); box-shadow:0 0 8px var(--alert); }
+.call-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.script{ font:400 13px 'IBM Plex Mono', monospace; color:var(--text-primary); background:var(--bg-deep);
+  border-left:3px solid var(--teal); padding:6px 9px; border-radius:4px; margin-top:8px; line-height:1.45; }
+.script .who{ color:var(--teal); font-size:10.5px; letter-spacing:.06em; display:block; margin-bottom:1px; }
+.script.atc{ border-left-color:var(--amber); }
+.script.atc .who{ color:var(--amber); }
+.script.atc .k{ color:var(--amber); font-weight:600; margin-right:6px; }
+
+.tools{ display:flex; gap:5px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+.tools .sep{ width:1px; height:22px; background:var(--bezel-hi); margin:0 3px; }
+.seg{ display:inline-flex; border:1px solid var(--bezel-hi); border-radius:6px; overflow:hidden; }
+.seg button{ font:500 12px 'IBM Plex Sans', sans-serif; background:transparent; color:var(--text-muted);
+  border:0; padding:5px 10px; cursor:pointer; }
+.seg button.on{ background:rgba(245,166,35,0.12); color:var(--amber); }
+.pad-wrap{ position:relative; border:1px solid var(--bezel-hi); border-radius:8px; overflow:hidden; background:var(--pad-bg); touch-action:none; overscroll-behavior:contain; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+.craft-type{ display:grid; grid-template-columns:24px minmax(0,1fr); gap:5px 7px; align-items:start; }
+.craft-type .L{ font:600 18px 'IBM Plex Mono', monospace; color:var(--amber); text-align:center; padding-top:6px; }
+.status{ font:400 12.5px/16px 'IBM Plex Mono', monospace; color:var(--text-muted); margin:-2px 0 6px; height:32px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; }
+.status.ok{ color:var(--ok); } .status.no{ color:var(--alert); }
+
+.ptt{
+  font:600 15px 'IBM Plex Sans', sans-serif; color:var(--text-primary);
+  background:#2b1416; border:2px solid #7d3a33; border-radius:10px; padding:11px 16px; cursor:pointer;
+  user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:none; min-width:140px;
+}
+.ptt.sm{ font-size:13px; padding:6px 11px; border-radius:8px; min-width:0; }
+.ptt-dock{ position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; justify-content:center; pointer-events:none;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); background:linear-gradient(to top, rgba(16,20,26,.95) 55%, rgba(16,20,26,0)); }
+.ptt-dock .ptt{ pointer-events:auto; display:flex; flex-direction:column; align-items:center; gap:1px; min-width:min(320px, 100%); padding:10px 22px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
+.ptt-main{ font-size:16px; }
+.ptt-sub{ font:500 11.5px 'IBM Plex Mono', monospace; color:var(--text-muted); letter-spacing:.02em; }
+.ptt.live .ptt-sub{ color:var(--text-primary); }
+.ptt.live{ background:#5a1d1d; border-color:var(--alert); box-shadow:0 0 14px rgba(224,112,95,.5); }
+.ptt:disabled{ opacity:.4; cursor:default; }
+.nasr-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:4px; }
+.heard{ font:400 13px 'IBM Plex Mono', monospace; color:var(--text-muted); margin-top:6px; min-height:16px; word-break:break-word; }
+/* Readback transcripts: kept for the whole clearance so the pilot can review exactly what was said */
+.rb-log{ list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.rb-log:empty{ display:none; }
+.rb-log li{ font:400 13px/1.5 'IBM Plex Mono', monospace; color:var(--text-primary); background:var(--bg-deep); border:1px solid var(--bezel); border-left:3px solid var(--bezel-hi); border-radius:5px; padding:6px 10px; word-break:break-word; }
+.rb-log li.ok{ border-left-color:var(--ok); }
+.rb-log li.no{ border-left-color:var(--alert); }
+.rb-log .rb-h{ display:block; font-size:11px; color:var(--text-muted); margin-bottom:2px; }
+.score{ display:grid; grid-template-columns:30px minmax(0,1fr) 22px; gap:3px 8px; margin-top:8px; align-items:start; }
+.score .L{ font:600 15px 'IBM Plex Mono', monospace; color:var(--amber); text-align:center; }
+.score .v{ font:400 12.5px 'IBM Plex Mono', monospace; line-height:1.4; word-break:break-word; }
+.score .v .miss{ color:var(--alert); }
+.score .m{ font-size:15px; text-align:center; }
+.score .m.ok{ color:var(--ok); } .score .m.no{ color:var(--alert); }
+.verdict{ margin-top:8px; font:600 13px 'IBM Plex Sans', sans-serif; }
+.verdict.ok{ color:var(--ok); } .verdict.no{ color:var(--alert); }
+.clr-text{ font:400 13px 'IBM Plex Mono', monospace; line-height:1.5; background:var(--bg-deep);
+  border:1px dashed var(--bezel-hi); border-radius:6px; padding:7px 10px; margin-top:8px; }
+.clr-text .k{ color:var(--amber); font-weight:600; margin-right:6px; }
+.tally{ font:500 12px 'IBM Plex Mono', monospace; color:var(--text-muted); margin-top:8px; }
+
+.fine{ font-size:11px; color:var(--text-muted); line-height:1.5; margin:12px 6px 0; }
+
+footer.page-footer{ text-align:center; font-size:11px; color:var(--text-muted); margin-top:16px; }
+.back-link{ margin-bottom:10px; }
+.back-link a{
+  display:inline-block; background:var(--bezel); color:var(--amber); text-decoration:none;
+  border:1px solid var(--bezel-hi); border-radius:5px; padding:6px 14px; font-size:12px;
+}
+.back-link a:hover{ background:var(--bezel-hi); text-decoration:none; }
+.credit-line{ margin-bottom:2px; }
+.credit-line a{ color:var(--text-muted); }
+.hit-counter{ margin-top:8px; font-size:11px; color:var(--text-muted); }
+.share-btn{
+  display:inline-flex; align-items:center; gap:7px; margin-top:10px;
+  background:transparent; border:1px solid var(--bezel-hi); border-radius:20px; padding:8px 16px;
+  color:var(--text-muted); font-family:'IBM Plex Sans', sans-serif; font-size:12.5px; cursor:pointer;
+  transition:color .15s ease, border-color .15s ease;
+}
+.share-btn:hover{ color:var(--amber); border-color:var(--amber); }
+.share-icon{ width:15px; height:15px; flex-shrink:0; }
+
+@media (max-width:420px){
+  .radio .freq{ font-size:18px; }
+  canvas#pad{ height:322px; }
+  .presets{ margin-left:0; }
+  .tools .sep{ display:none; }
+}
+</style>
+</head>
+<body>
+<div class="rig">
+
+  <div class="title-row">
+    <h1>Clearance Delivery Trainer</h1>
+    <span class="ver mono">v0.19</span>
+  </div>
+  <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
+
+  <div class="panel">
+
+    <!-- 1. Flight -->
+    <div class="step" id="stepFlight">
+      <div class="step-head"><span class="step-num">1</span><span class="step-title">Your flight</span></div>
+      <div class="grid">
+        <label class="f">Tail number<input class="t" id="tail" value="N211WP" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+        <label class="f">Callsign prefix (spoken)<input class="t" id="prefix" value="Diamond" autocomplete="off" spellcheck="false" placeholder="e.g. Diamond, Skyhawk"></label>
+        <label class="f">Departure<input class="t" id="dep" value="KSBA" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="apname" id="depName"></span></label>
+        <label class="f">Destination<input class="t" id="dest" value="KSBP" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="apname" id="destName"></span></label>
+        <label class="f full">Aircraft (TEC class)
+          <select class="t" id="cls">
+            <option value="Q">Piston / prop, under 190 kt (Q)</option>
+            <option value="P">Non-jet, 190 kt or faster (P)</option>
+            <option value="M">Turboprop / special, 190 kt or faster (M)</option>
+            <option value="J">Jet (J)</option>
+          </select>
+        </label>
+        <label class="f full">Filed route<select class="t" id="route"></select></label>
+        <label class="f full hidden" id="myRouteWrap">Your route (fixes and airways, or a TEC code)
+          <textarea class="t" id="myRoute" rows="2" spellcheck="false" autocapitalize="characters" autocomplete="off" placeholder="HENER V186 DARTS V597 MZB   or   SBAQ27"></textarea>
+        </label>
+        <div class="full hint" id="routeInfo"></div>
+        <div class="full call-row">
+          <button class="btn sm" type="button" id="btnFF">Get routes from ForeFlight (via Claude)</button>
+          <a class="btn sm" id="faLink" href="#" target="_blank" rel="noopener" style="text-decoration:none">See filed routes on FlightAware ↗</a>
+        </div>
+        <div class="full hint" id="ffNote"></div>
+        <label class="f">Filed altitude<select class="t" id="alt"></select></label>
+        <label class="f">Clearance style
+          <select class="t" id="style">
+            <option value="full">Full clearance (TEC by name)</option>
+            <option value="expanded">Route spelled out</option>
+            <option value="filed">Cleared as filed</option>
+            <option value="amend">Amended route</option>
+            <option value="mix">Mix it up</option>
+            <option value="grad">Graduated in difficulty</option>
+            <option value="vfrc" id="optVfr" hidden disabled>VFR departing Class C</option>
+          </select>
+        </label>
+        <div class="full hint hidden" id="gradInfo"></div>
+        <label class="chk full"><input type="checkbox" id="learn"> Learning mode <small>— show the clearance as it's read</small></label>
+      </div>
+
+      <details class="set" id="depSet">
+        <summary>Departure details <span id="depSetNote" style="color:var(--text-muted)"></span></summary>
+        <div class="grid">
+          <label class="f">Facility (spoken)<input class="t" id="dFac" spellcheck="false"></label>
+          <label class="f">Its frequency<input class="t" id="dCall" inputmode="decimal" spellcheck="false"></label>
+          <label class="f">Departure procedure (written)<input class="t" id="dDpW" spellcheck="false" autocapitalize="characters" placeholder="e.g. SBA5, or blank"></label>
+          <label class="f">Departure procedure (spoken)<input class="t" id="dDpS" spellcheck="false" placeholder="e.g. Santa Barbara Five departure"></label>
+          <label class="chk full"><input type="checkbox" id="dVec" checked> Radar vectors to the first fix</label>
+          <label class="f">Initial altitude (ft)<input class="t" id="dInit" inputmode="numeric"></label>
+          <label class="f">Expect filed after (min)<input class="t" id="dExp" inputmode="numeric"></label>
+          <label class="f">Departure frequency<input class="t" id="dFreq" inputmode="decimal"></label>
+          <label class="f">VFR departure: at or below (ft)<input class="t" id="dVfr" inputmode="numeric"></label>
+          <label class="f">Ground frequency<input class="t" id="dGnd" inputmode="decimal"></label>
+        </div>
+        <p class="hint" id="depSrc"></p>
+        <div class="hint nasr-row"><span id="nasrInfo">FAA frequencies: checking…</span> <button class="btn sm" id="btnNasr" type="button">Update FAA data</button></div>
+      </details>
+
+      <details class="set" id="voiceSet">
+        <summary>Voice &amp; radio</summary>
+        <label class="f">Controller voice<select class="t" id="voice"></select></label>
+        <div class="slider"><span>Speed</span><input type="range" id="rate" min="0.6" max="1.6" step="0.05" value="0.85"><output id="rateOut">0.85×</output></div>
+        <div class="presets">
+          <button class="btn sm" type="button" data-rate="0.85">Relaxed</button>
+          <button class="btn sm" type="button" data-rate="1">Normal</button>
+          <button class="btn sm" type="button" data-rate="1.15">Busy</button>
+          <button class="btn sm" type="button" data-rate="1.3">LA Saturday</button>
+        </div>
+        <div class="slider"><span>Pitch</span><input type="range" id="pitch" min="0.6" max="1.4" step="0.05" value="1"><output id="pitchOut">1.00</output></div>
+        <div class="slider"><span>Volume</span><input type="range" id="vol" min="0.1" max="1" step="0.05" value="1"><output id="volOut">100%</output></div>
+        <div class="slider"><span>Static</span><input type="range" id="noise" min="0" max="1" step="0.05" value="0"><output id="noiseOut">0%</output></div>
+        <label class="chk" style="margin-top:4px"><input type="checkbox" id="squelch" checked> Squelch click at start and end of each transmission</label>
+        <div class="call-row" style="margin-top:8px"><button class="btn sm" type="button" id="btnSample">▶ Play sample</button></div>
+        <p class="hint">Static plays under the voice; the browser's voice itself can't be filtered to sound like a radio. Saved on this device.</p>
+      </details>
+    </div>
+
+    <!-- 2. Call -->
+    <div class="step" id="stepCall">
+      <div class="step-head"><span class="step-num">2</span><span class="step-title">Call Clearance</span><span class="step-sub" id="callSub"></span></div>
+      <div class="radio">
+        <div>
+          <div class="lbl"><span class="rx" id="rx"></span>COM1 active</div>
+          <div class="freq" id="freq">---.---</div>
+        </div>
+        <div class="fac" id="fac"></div>
+      </div>
+      <div class="call-row">
+        <button class="btn" id="btnCall" type="button" title="Plays your call for you, for when you are not using the microphone">Send my call (no mic)</button>
+        <button class="btn" id="btnSayAgain" type="button" disabled>Say again</button>
+        <button class="btn" id="btnRoute" type="button" disabled>Request full route</button>
+        <button class="btn" id="btnNew" type="button">New clearance</button>
+      </div>
+      <div class="script" id="pilotScript"><span class="who">YOU SAY</span><span id="pilotLine"></span></div>
+      <div class="script atc hidden" id="atcBox"><span class="who">CLEARANCE DELIVERY</span><span id="atcLine"></span></div>
+    </div>
+
+    <!-- 3. Copy -->
+    <div class="step" id="stepCopy">
+      <div class="step-head"><span class="step-num">3</span><span class="step-title">Copy it down</span>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="tools">
+        <button class="btn sm" id="btnPause" type="button" disabled>⏸ Pause</button>
+        <button class="btn sm" id="btnBack" type="button" disabled>⟲ Back 3 s</button>
+        <button class="btn sm" id="btnReplay" type="button" disabled>⟳ Replay</button>
+        <span class="sep"></span>
+        <div class="seg">
+          <button type="button" id="modeDraw" class="on">Write</button>
+          <button type="button" id="modeType">Type</button>
+        </div>
+        <button class="btn sm" id="padUndo" type="button">↶ Undo</button>
+        <button class="btn sm" id="padClear" type="button">Clear</button>
+      </div>
+      <div class="pad-wrap" id="padWrap"><canvas id="pad"></canvas></div>
+      <p class="hint" id="padHint" style="margin:4px 0 0">Write with one finger or a pencil; scroll the page with two fingers.</p>
+      <div class="craft-type hidden" id="craftType">
+        <span class="L">C</span><input class="t" id="tC" spellcheck="false" autocapitalize="characters" autocomplete="off">
+        <span class="L">R</span><textarea class="t" id="tR" rows="3" spellcheck="false" autocapitalize="characters" autocomplete="off"></textarea>
+        <span class="L">A</span><input class="t" id="tA" spellcheck="false" autocapitalize="characters" autocomplete="off">
+        <span class="L">F</span><input class="t" id="tF" spellcheck="false" inputmode="decimal" autocomplete="off">
+        <span class="L">T</span><input class="t" id="tT" spellcheck="false" inputmode="numeric" autocomplete="off">
+        <span class="L">V</span><input class="t" id="tV" spellcheck="false" inputmode="numeric" autocomplete="off" placeholder="void time (Approach/Center clearances)">
+      </div>
+      <p class="hint">Hold the red Push to talk at the bottom of the screen (or Space) while you speak: initial call, "ready to copy", readback, "say again" or "request full route".</p>
+    </div>
+
+    <!-- 4. Read back -->
+    <div class="step" id="stepRead">
+      <div class="step-head"><span class="step-num">4</span><span class="step-title">Readback result</span></div>
+      <div class="call-row">
+        <button class="btn" id="btnCheckTyped" type="button" disabled>Check typed readback</button>
+      </div>
+      <div class="hint" id="pttHint"></div>
+      <div class="heard" id="heard"></div>
+      <ol class="rb-log" id="rbLog" aria-label="Your readbacks"></ol>
+      <textarea class="t hidden" id="typedRb" rows="2" placeholder="Or type the readback, e.g. SDM SBA5 SBAQ27 3000 7000 5 125.4 4213" style="margin-top:6px"></textarea>
+      <div id="scoreBox" class="hidden">
+        <div class="score" id="score"></div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+      <div class="call-row" style="margin-top:8px">
+        <button class="btn" id="btnShow" type="button" disabled>Show clearance</button>
+      </div>
+      <div class="clr-text hidden" id="clrText"></div>
+      <div class="tally" id="tally"></div>
+      <div class="call-row hidden" id="nextRow" style="margin-top:10px">
+        <button class="btn primary" id="btnNext" type="button">Call for next clearance</button>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="fine" id="fine">Training aid only, not for navigation or flight planning. Routes: FAA NFDC Preferred Routes Database (TEC, low and high preferred routes), effective 03-Sep-2026 to 29-Oct-2026, downloaded 17-Oct-2026; plus ATC-cleared KSBA routes from ForeFlight, pulled 17-Oct-2026, and any routes you bring back with "Get routes from ForeFlight (via Claude)", which uses your own ForeFlight connector and is kept only on this device. The FlightAware link opens FlightAware's list of recently filed routes for the pair (filed, not necessarily flown as filed). Departure procedure names spoken from a route (e.g. GAUCH3 as "Gaucho Three") are a best guess. TEC aircraft classes per Redbird Flight's TEC summary: J jet; M turboprop/special 190 kt+; P non-jet 190 kt+; Q non-jet 189 kt or less; the number after the letters is the highest altitude for that class. TEC routes with a name (e.g. SBAQ27) are read by name as departure city, phonetic letter and digits ("Santa Barbara Quebec two seven"), following the "Ontario Papa 16" example in that summary; the digit-by-digit reading is an assumption. US airport frequencies: FAA NASR 28-day subscription (FRQ frequency data), refreshed on this site each cycle ("Update FAA data" in Departure details); OurAirports is the fallback and covers everywhere else. Where a field has no Clearance, Ground or Tower frequency, the app uses the approach or center frequency OurAirports lists for that field; if none is listed, it borrows the nearest field's (within 80 km) and says so in Departure details. Check either against the Chart Supplement. Airport names, frequencies and navaid names: OurAirports (public domain), bundled 17-Oct-2026: about 25,500 airports, i.e. every US, Canadian and Mexican airport and seaplane base plus worldwide airports with an ICAO code. Small fields often have no published Clearance Delivery or departure frequency in that data; the app then uses typical defaults, which you can edit in Departure details. KSBA departure: Santa Barbara Five (SBA5), on radar vectors maintain 3000, expect filed altitude 5 minutes after departure (FAA chart AL-378). Other airports get typical defaults (radar vectors, 3,000 ft or field elevation + 2,000, expect filed altitude in 10 minutes); check them against your charts in Departure details. Departure frequency is picked from the published sector split where there is one. Filed-altitude choices follow the odd/even IFR cruising rule (14 CFR 91.179, from memory). Speech recognition is done by your browser: Chrome sends audio to Google, Safari uses Apple's service.</p>
+
+  <!-- One Push to talk, like the airplane: floats at the bottom, labeled with what's expected next -->
+  <div class="ptt-dock"><button class="ptt" id="ptt" type="button" data-ptt><span class="ptt-main">● Push to talk</span><span class="ptt-sub" id="pttSub"></span></button></div>
+  <footer class="page-footer">
+    <div class="back-link"><a href="https://geezer-geek-pilot-control-panel.netlify.app">&larr; Back to GeezerGeek Pilot Apps</a></div>
+    <div class="credit-line">Wayne McClelland, <a href="https://youtube.com/@GeezerGeekPilot" target="_blank" rel="noopener">GeezerGeek Pilot</a>, <a href="https://docs.google.com/document/d/1chfDa3JBCjsGykGjwrAFwOqMAS7d3_dIY9ieROLCIyU/preview" target="_blank" rel="noopener">Reference Materials</a></div>
+    <div class="hit-counter" id="hitCounter"></div>
+    <button id="shareBtn" class="share-btn" type="button">
+      <svg class="share-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/>
+      </svg>
+      <span>Share this app with pilot friends</span>
+    </button>
+  </footer>
+</div>
+
+<!-- bundled data (plain script files so the app also works when opened straight from disk) -->
+<script src="data/airports.js"></script>
+<script src="data/navaids.js"></script>
+<script src="data/prefroutes.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   DATA
+   ===================================================================== */
+const AP = window.CD_AIRPORTS || {};          // ICAO → {n name, c city, la, lo, e elev, f FAA id, cd, g, d:[[freq,desc]], t, ct}
+const NV = window.CD_NAVAIDS || {};           // ident → [name, lat, lon, magvar(E+), type]
+const RT = (window.CD_ROUTES || {}).r || {};  // FAA origin id → [[dest, route, type, alt, aircraft, tecId]]
+/* ---- FAA NASR frequencies (US airports) ----
+   netlify/functions/nasr-freq.js keeps the current 28-day cycle's FAA frequencies (FRQ CSV) in Netlify Blobs.
+   They replace OurAirports' Clearance/Ground/Tower/Departure/Approach/Center for every US field they cover.
+   Loaded from this device's copy first, then from the site; refreshed automatically when missing or past its cycle. */
+const NASR_FN = '/.netlify/functions/nasr-freq';
+const NASR_LS = 'cd.nasr.v1';
+let NASR = null;
+const fmtDay = iso => { const [y,m,d] = String(iso || '').split('-'); return d ? `${d}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}-${y}` : ''; };
+function nasrApply(t){
+  if (!t || !t.ap || !t.meta) return 0;
+  NASR = t; let n = 0;
+  for (const lid in t.ap){
+    const k = FAAIDX[lid] || (AP['K' + lid] ? 'K' + lid : (AP[lid] ? lid : null)); if (!k) continue;
+    const a = AP[k], e = t.ap[lid];
+    a.cc = e.cc ? 1 : 0;
+    if (!(e.cd || e.g || e.t || e.ap || e.ctr || (e.d && e.d.length))) continue;   // class-only entry: keep this field's frequencies
+    if (!a._oa) a._oa = { cd:a.cd, g:a.g, t:a.t, d:a.d, ar:a.ar };
+    const o = a._oa;
+    a.cd = e.cd; a.g = e.g; a.t = e.t;
+    a.d = e.d && e.d.length ? e.d : o.d;
+    a.ar = e.ap || e.ctr || o.ar;   // FAA approach/center for this field, else the OurAirports one (possibly borrowed)
+    a.src = 'nasr'; n++;
+  }
+  return n;
+}
+function nasrShow(msg){
+  const el = $('nasrInfo'); if (!el) return;
+  el.textContent = msg || (NASR ? `FAA frequencies (NASR) effective ${fmtDay(NASR.meta.effective)} until ${fmtDay(NASR.meta.until)}, ${NASR.meta.airports.toLocaleString()} US airports.` : 'FAA frequencies: not loaded; using OurAirports.');
+}
+function nasrStale(t){ return !t || !t.meta || new Date().toISOString().slice(0,10) >= t.meta.until; }
+function nasrRefreshUI(){ if (S.phase === 'idle'){ fillDepDetails(true); } else updateRadio(); }
+async function nasrUpdate(manual){
+  const b = $('btnNasr'); b.disabled = true; b.textContent = 'Updating…';
+  nasrShow('Downloading the current FAA cycle…');
+  try {
+    const r = await fetch(NASR_FN + '?action=update'); const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error || 'HTTP ' + r.status);
+    const t = j.ap ? { meta:j.meta, ap:j.ap } : await (await fetch(NASR_FN + '?action=get')).json();
+    if (t && t.ap){ nasrApply(t); try { localStorage.setItem(NASR_LS, JSON.stringify(t)); } catch (e) {} nasrRefreshUI(); }
+    const d = j.diff;
+    nasrShow(); if (manual) $('nasrInfo').textContent += d ? (d.total ? ` ${d.total} airport${d.total === 1 ? '' : 's'} changed.` : ' No changes.') : ' First download.';
+  } catch (e){
+    nasrShow(); $('nasrInfo').textContent += ' Update failed: ' + e.message;
+  } finally { b.disabled = false; b.textContent = 'Update FAA data'; }
+}
+async function nasrInit(){
+  $('btnNasr').addEventListener('click', () => nasrUpdate(true));
+  try { const c = JSON.parse(localStorage.getItem(NASR_LS) || 'null'); if (c && nasrApply(c)) nasrRefreshUI(); } catch (e) {}
+  nasrShow();
+  if (!/netlify\.app$/.test(location.hostname)){ if (!NASR) nasrShow('FAA frequencies: available on the live site; using OurAirports here.'); return; }
+  try {
+    const t = await (await fetch(NASR_FN + '?action=get')).json();
+    if (t && t.ap && (!NASR || t.meta.fetchedAt !== NASR.meta.fetchedAt)){ nasrApply(t); try { localStorage.setItem(NASR_LS, JSON.stringify(t)); } catch (e) {} nasrRefreshUI(); }
+    nasrShow();
+    if (nasrStale(t && t.ap ? t : null)) nasrUpdate(false);
+  } catch (e) { nasrShow(); }
+}
+const FAAIDX = {};   // FAA/local id → ICAO; US (K…) airports win when a code is shared (e.g. LAX)
+for (const k in AP){ const f = AP[k].f; if (f && (!FAAIDX[f] || (/^K/.test(k) && !/^K/.test(FAAIDX[f])))) FAAIDX[f] = k; }
+
+/* Departures with a known departure procedure (FAA chart). */
+const KNOWN_DEP = {
+  KSBA:{ dpW:'SBA5', dpS:'Santa Barbara Five departure', vec:true, init:3000, exp:5, src:'Santa Barbara Five departure (FAA chart AL-378): on radar vectors maintain 3000, expect filed altitude 5 minutes after departure.' }
+};
+/* ATC-cleared routes from ForeFlight (17-Oct-2026) for pairs the FAA database doesn't cover.
+   cls: TEC classes the route was cleared for (from ForeFlight engine types). */
+const LIB = {
+  KSBA:{
+    KSBP:[ { r:'GVO V27 MQO', cls:'QPMJ', lo:4000, hi:14000, n:'ATC-cleared 1,762 times (ForeFlight)' },
+           { r:'GVO', cls:'QPMJ', lo:4000, hi:14000, n:'ATC-cleared 95 times (ForeFlight)' } ],
+    KMRY:[ { r:'GVO WIGGL', cls:'QPMJ', lo:4000, hi:16000, n:'ATC-cleared 492 times (ForeFlight)' },
+           { r:'GVO V27 MQO V113 PRB V25 WIGGL', cls:'QPM', lo:6000, hi:14000, n:'ATC-cleared 35 times (ForeFlight)' } ],
+    KVNY:[ { r:'RZS V186 FIM UMBER', cls:'QPMJ', lo:4000, hi:6000, n:'ATC-cleared 43 times (ForeFlight)' } ]
+  }
+};
+const FF_COUNTS = { SBAQ27:'81', SBAQ24:'40', SBAQ26:'83', SBAQ6:'57', SBAQ8:'218', SBAQ2:'91' };   // ATC-cleared counts seen in ForeFlight
+
+/* How ATC says some destinations (cleaned OurAirports names are used otherwise). */
+const SPOKEN = { KSBP:'San Luis Obispo', KSDM:'Brown Field', KCRQ:'Palomar', KSNA:'John Wayne', KVNY:'Van Nuys', KSBA:'Santa Barbara',
+  KMRY:'Monterey', KPSP:'Palm Springs', KLGB:'Long Beach', KSMO:'Santa Monica', KCMA:'Camarillo', KOXR:'Oxnard', KBUR:'Burbank',
+  KLAX:'Los Angeles', KSAN:'San Diego', KMYF:'Montgomery', KTOA:'Torrance', KFUL:'Fullerton', KHHR:'Hawthorne', KWHP:'Whiteman',
+  KEMT:'El Monte', KCNO:'Chino', KONT:'Ontario', KRAL:'Riverside', KSEE:'Gillespie', KPOC:'Brackett', KCCB:'Cable', KSBD:'San Bernardino',
+  KTRM:'Jacqueline Cochran', KHMT:'Hemet', KIZA:'Santa Ynez', KSMX:'Santa Maria', KPRB:'Paso Robles', KOAK:'Oakland', KSJC:'San Jose' };
+const FIXSAY = { BAYJY:'bay jay', POXKU:'pocks coo', NIKKL:'nickel', WIGGL:'wiggle' };
+
+/* Graduated difficulty. Up a level after a first-try readback with no say-again; down after 3 misses. */
+const LEVELS = [
+  null,
+  { name:'Cleared as filed, long pauses, digits spoken one by one',  style:'filed', expand:false, rate:1.0,  gap:1500, art:true,  join:false },
+  { name:'Full clearance (TEC route by name where there is one), pauses, digits one by one', style:'route', expand:false, rate:1.0, gap:1000, art:true, join:false },
+  { name:'Route spelled out, short pauses',                         style:'route', expand:true,  rate:1.0,  gap:600,  art:false, join:false },
+  { name:'Amended route, brisk pace',                               style:'amend', expand:false, rate:1.1,  gap:300,  art:false, join:false },
+  { name:'Amended route spelled out, busy controller, one breath',  style:'amend', expand:true,  rate:1.2,  gap:0,    art:false, join:true  }
+];
+const DEFAULT_TIMING = { gap:500, art:false, join:false };
+
+const NATO = ['alpha','bravo','charlie','delta','echo','foxtrot','golf','hotel','india','juliett','kilo','lima','mike',
+  'november','oscar','papa','quebec','romeo','sierra','tango','uniform','victor','whiskey','x-ray','yankee','zulu'];
+const DIGW = ['zero','one','two','three','four','five','six','seven','eight','niner'];
+const $ = id => document.getElementById(id);
+
+/* =====================================================================
+   PREFS (per device; storage may be blocked). v2 key: static resets to 0 once.
+   ===================================================================== */
+const PREF_KEY = 'cd.prefs.v2';
+let PREFS = {};
+try {
+  PREFS = JSON.parse(localStorage.getItem(PREF_KEY) || 'null');
+  if (!PREFS){ PREFS = JSON.parse(localStorage.getItem('cd.prefs.v1') || '{}') || {}; delete PREFS.noise; }
+} catch (e) { PREFS = {}; }
+/* v0.8: new defaults are Relaxed speed and Samantha. Clear a saved voice and speed once so they take effect. */
+if (PREFS && !PREFS.vdef){ delete PREFS.voice; delete PREFS.rate; PREFS.vdef = 1; }
+function savePrefs(){
+  PREFS = { voice: VOICES[+$('voice').value] ? VOICES[+$('voice').value].name : PREFS.voice,
+    rate:+$('rate').value, pitch:+$('pitch').value, vol:+$('vol').value, noise:+$('noise').value,
+    squelch:$('squelch').checked, learn:$('learn').checked, style:$('style').value, level:S.level,
+    tail:$('tail').value, prefix:$('prefix').value, dep:$('dep').value, dest:$('dest').value, cls:$('cls').value, vdef:1 };
+  try { localStorage.setItem(PREF_KEY, JSON.stringify(PREFS)); } catch (e) {}
+}
+
+/* =====================================================================
+   GEO + AIRPORTS
+   ===================================================================== */
+function findAirport(q){
+  q = String(q || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (!q) return null;
+  if (AP[q]) return q;
+  if (q.length === 3 && AP['K' + q]) return 'K' + q;
+  if (FAAIDX[q]) return FAAIDX[q];
+  return null;
+}
+const faaId = icao => (AP[icao] && AP[icao].f) || (/^K[A-Z0-9]{3}$/.test(icao) ? icao.slice(1) : icao);
+function spokenName(icao){
+  if (SPOKEN[icao]) return SPOKEN[icao];
+  const a = AP[icao]; if (!a) return '';
+  let n = a.n.replace(/\b(airport|municipal|regional|international|intl|county|airfield|executive|metropolitan|memorial)\b/gi, ' ')
+    .replace(/\s*[-/]\s*$/, '').replace(/\s+/g, ' ').trim();
+  return n || a.c || icao;
+}
+function cityOfFaa(id){ const k = FAAIDX[id] || ('K' + id); return SPOKEN[k] || (AP[k] && AP[k].c) || ''; }
+const rad = d => d * Math.PI / 180;
+function bearing(la1, lo1, la2, lo2){
+  const y = Math.sin(rad(lo2 - lo1)) * Math.cos(rad(la2));
+  const x = Math.cos(rad(la1)) * Math.sin(rad(la2)) - Math.sin(rad(la1)) * Math.cos(rad(la2)) * Math.cos(rad(lo2 - lo1));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+function magvarAt(la, lo){   // nearest navaid's published variation (east positive)
+  let best = null, bd = 1e9;
+  for (const k in NV){ const v = NV[k]; if (v[3] == null) continue; const d = (v[1]-la)**2 + ((v[2]-lo)*Math.cos(rad(la)))**2; if (d < bd){ bd = d; best = v[3]; } }
+  return best == null ? 0 : best;
+}
+function posOf(tok){
+  if (NV[tok]) return [NV[tok][1], NV[tok][2]];
+  const a = findAirport(tok); if (a) return [AP[a].la, AP[a].lo];
+  return null;
+}
+
+/* =====================================================================
+   SPEECH TEXT
+   ===================================================================== */
+const sayDigits = (s, sep) => String(s).split('').map(c => c === '.' ? 'point' : (/\d/.test(c) ? DIGW[+c] : '')).filter(Boolean).join(sep || ' ');
+const sayLetters = s => String(s).toUpperCase().split('').map(c => /[A-Z]/.test(c) ? NATO[c.charCodeAt(0)-65] : (/\d/.test(c) ? DIGW[+c] : '')).filter(Boolean).join(' ');
+function sayTec(id){   // SBAQ27 → "Santa Barbara Quebec two seven" (city of the 3-letter id, phonetic letter, digits)
+  const m = /^([A-Z]{3})([A-Z])(\d+)$/.exec(id);
+  if (!m) return sayLetters(id);
+  const city = cityOfFaa(m[1]);
+  return (city || sayLetters(m[1])) + ' ' + NATO[m[2].charCodeAt(0)-65] + ' ' + sayDigits(m[3]);
+}
+function sayTail(tail, prefix){
+  let t = String(tail).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  let p = (prefix || '').trim();
+  if (t.startsWith('N') && /^\d/.test(t.slice(1))) { if (!p) p = 'November'; t = t.slice(1); }
+  return (p ? p + ' ' : '') + sayLetters(t);
+}
+function sayAlt(ft){
+  ft = +ft;
+  if (ft >= 18000) return 'flight level ' + sayDigits(Math.round(ft/100));
+  const th = Math.floor(ft/1000), hu = Math.round((ft % 1000)/100);
+  let s = th >= 10 ? sayDigits(th) + ' thousand' : (th ? DIGW[th] + ' thousand' : '');
+  if (hu) s += (s ? ' ' : '') + DIGW[hu] + ' hundred';
+  return s;
+}
+function numWords(n){
+  const u = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+  const t = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+  if (n < 20) return u[n];
+  return t[Math.floor(n/10)] + (n % 10 ? '-' + u[n % 10] : '');
+}
+function sayAirway(a){
+  const m = /^([A-Z])(\d+)$/.exec(a); if (!m) return sayLetters(a);
+  const L = {V:'victor', T:'tango', J:'jay', Q:'quebec'}[m[1]] || NATO[m[1].charCodeAt(0)-65];
+  const n = +m[2];
+  let num;
+  if (n < 100) num = numWords(n);
+  else { const h = Math.floor(n/100), r = n % 100; num = numWords(h) + ' ' + (r === 0 ? 'hundred' : (r < 10 ? 'zero ' + numWords(r) : numWords(r))); }
+  return L + ' ' + num;
+}
+const isAirway = tok => /^[VTJQ]\d+$/.test(tok);
+const isProc = tok => /^[A-Z]{3,6}\d$/.test(tok);   // SID/STAR like GAUCH3, EMZOH4
+/* Spoken names for procedures we know; otherwise the letters read as a word plus the number (a guess). */
+const PROCSAY = { SBA5:'Santa Barbara Five', GAUCH3:'Gaucho Three', MISHN5:'Mission Five', KWANG6:'Kwang Six' };
+function sayProc(tok){ return PROCSAY[tok] || (tok.slice(0,-1).toLowerCase() + ' ' + numWords(+tok.slice(-1))); }
+function sayFix(tok){
+  if (NV[tok] && NV[tok][4] !== 'NDB') return NV[tok][0];
+  if (FIXSAY[tok]) return FIXSAY[tok];
+  if (isProc(tok)) return sayProc(tok) + ' arrival';
+  const ap = findAirport(tok); if (ap && tok.length >= 3 && !NV[tok]) return spokenName(ap);
+  if (tok.length === 5) return tok.toLowerCase();
+  return sayLetters(tok);
+}
+function sayRoute(tokens){ return tokens.map(t => isAirway(t) ? sayAirway(t) : sayFix(t)).join(', '); }
+
+/* =====================================================================
+   ROUTES FOR A PAIR
+   ===================================================================== */
+function parseTecAlt(code, cls){   // "J110M90" / "PQ70" / "JMPQ70" / "70" → highest altitude (ft) for this class, null if class not allowed
+  const groups = [...String(code || '').matchAll(/([JMPQ]*)\s*(\d+)/g)];
+  if (!groups.length) return 17000;
+  const toFt = n => { n = +n; return n < 1000 ? n * 100 : n; };
+  if (!groups.some(g => g[1])) return Math.max(...groups.map(g => toFt(g[2])));
+  const g = groups.find(g => g[1].includes(cls));
+  return g ? toFt(g[2]) : null;
+}
+function parsePrefAlt(s){   // low/high preferred: "110-170 INCL", "AT OR ABOVE 130", "7000"
+  const nums = (String(s).match(/\d+/g) || []).map(n => +n < 1000 ? +n * 100 : +n);
+  if (!nums.length) return null;
+  if (/ABOVE/i.test(s)) return [nums[0], nums[0] + 4000];
+  if (/BELOW/i.test(s)) return [3000, nums[0]];
+  if (nums.length >= 2) return [Math.min(nums[0], nums[1]), Math.max(nums[0], nums[1])];
+  return [nums[0], nums[0]];
+}
+function prefAllows(ac, cls){
+  const s = String(ac).toUpperCase();
+  if (!s) return true;
+  if (/NON-?TURBOJET|PROPS? ONLY|PISTON/.test(s)) return cls !== 'J';
+  if (/JETS? ONLY|TURBOJETS?\b/.test(s) && !/TURBOPROP/.test(s)) return cls === 'J';
+  if (/TURBOPROP/.test(s) && !/JET/.test(s)) return cls === 'M' || cls === 'P';
+  return true;
+}
+/* Routes brought back from ForeFlight via Claude, cached per pair on this device. */
+const FF_KEY = 'cd.ff.v1';
+let FFCACHE = {};
+try { FFCACHE = JSON.parse(localStorage.getItem(FF_KEY) || '{}') || {}; } catch (e) { FFCACHE = {}; }
+const ENG2CLS = { P:'QP', T:'M', J:'J' };
+/* Piston classes (Q, P) top out at 17,000: the highest IFR cruising altitude below Class A (18,000 MSL).
+   Routes ForeFlight only saw flown higher are hidden for those classes; the rest are capped. */
+const CLS_MAX_ALT = { Q:17000, P:17000 };
+let FF_HIDDEN = 0;
+function ffOptions(depK, destK, cls){
+  const e = FFCACHE[depK + '-' + destK]; if (!e) return [];
+  const mine = [], other = [];
+  const cap = CLS_MAX_ALT[cls] || 0;
+  FF_HIDDEN = 0;
+  for (const x of e.routes){
+    if (cap && (x.lo || 0) > cap){ FF_HIDDEN++; continue; }   // only ever filed in the flight levels
+    const classes = (x.eng || 'PTJ').split('').map(c => ENG2CLS[c] || '').join('');
+    const isTec = /^[A-Z]{3}[A-Z]\d+$/.test(x.r);
+    let r = x.r, id = '';
+    if (isTec){ id = x.r; r = ''; for (const o in RT) for (const q of RT[o]) if (q[5] === id){ r = q[1]; break; } }
+    const kind = x.t === 'C' ? 'ATC-cleared' : x.t === 'T' ? 'TEC' : 'ForeFlight-generated';
+    const engTxt = (x.eng || '').split('').map(c => ({P:'piston',T:'turboprop',J:'jet'})[c]).filter(Boolean).join('/');
+    const hiRaw = Math.max(x.lo || 3000, x.hi || 17000);
+    const o = { id, r, lo:Math.max(3000, x.lo || 3000), hi:cap ? Math.min(cap, hiRaw) : hiRaw, kind:'ForeFlight ' + kind, ff:true,
+      n:`${x.t === 'F' ? 'ForeFlight-generated route' : 'ForeFlight ' + kind}${x.n ? ' ' + x.n + ' times' : ''}${x.d ? ', last ' + x.d : ''}${engTxt ? ' (' + engTxt + ')' : ''}${x.t === 'F' ? ' — not an ATC clearance' : ''}` };
+    (classes.includes(cls) ? mine : other).push(o);
+  }
+  return mine.concat(other.map(o => ({ ...o, n:o.n + ' — cleared for other aircraft types' })));
+}
+function routeOptions(depK, destK, cls){
+  const out = [];
+  if (!depK || !destK) return out;
+  for (const f of ffOptions(depK, destK, cls)) if (!out.some(x => x.r === f.r && x.id === f.id)) out.push(f);
+  const o = faaId(depK), d = faaId(destK);
+  for (const e of RT[o] || []){
+    if (e[0] !== d) continue;
+    const [ , r, type, alt, ac, tid ] = e;
+    let lo = 3000, hi;
+    if (type === 'TEC'){ hi = parseTecAlt(alt, cls); if (hi == null) continue; }
+    else if (type === 'L'){ if (!prefAllows(ac, cls)) continue; const a = parsePrefAlt(alt); if (a){ lo = a[0]; hi = a[1]; } else hi = 17000; }
+    else if (type === 'H'){ if (cls === 'Q' || cls === 'P' || !prefAllows(ac, cls)) continue; lo = 18000; hi = 41000; const a = parsePrefAlt(alt); if (a){ lo = Math.max(lo, a[0]); hi = Math.max(lo, a[1]); } }
+    else continue;
+    if (!r || out.some(x => x.r === r)) continue;
+    const kind = type === 'TEC' ? 'TEC' : type === 'L' ? 'Low preferred' : 'High preferred';
+    out.push({ id:tid, r, lo, hi, kind,
+      n:`FAA ${kind} route${tid ? ' ' + tid : ''}${alt ? ' · ' + alt : ''}${ac ? ' · ' + ac : ''}${tid && FF_COUNTS[tid] ? ' · ATC-cleared ' + FF_COUNTS[tid] + ' times (ForeFlight)' : ''}` });
+  }
+  for (const L of ((LIB[depK] || {})[destK] || [])){
+    if (!L.cls.includes(cls) || out.some(x => x.r === L.r)) continue;
+    out.push({ id:'', r:L.r, lo:L.lo, hi:L.hi, kind:'ATC-cleared', n:L.n });
+  }
+  return out;
+}
+
+/* =====================================================================
+   STATE + SETUP UI
+   ===================================================================== */
+const S = { phase:'idle', clr:null, tries:0, sayAgains:0, done:false, talking:false, level:1, opts:[], stats:{ n:0, firstTry:0 } };
+S.level = Math.min(5, Math.max(1, +PREFS.level || 1));
+const depK = () => findAirport($('dep').value);
+const destK = () => findAirport($('dest').value);
+
+function showApNames(){
+  const set = (el, k, raw) => {
+    if (!raw.trim()){ el.textContent = ''; el.className = 'apname'; return; }
+    if (!k){ el.textContent = 'Not found — check the ident'; el.className = 'apname warn'; return; }
+    const a = AP[k];
+    el.textContent = `${k}${a.f && a.f !== k ? ' / ' + a.f : ''} · ${a.n}${a.c ? ', ' + a.c : ''}`; el.className = 'apname';
+  };
+  set($('depName'), depK(), $('dep').value); set($('destName'), destK(), $('dest').value);
+}
+function customRoute(){
+  const toks = $('myRoute').value.toUpperCase().replace(/[^A-Z0-9\s]/g,' ').trim().split(/\s+/).filter(Boolean);
+  if (!toks.length) return null;
+  if (toks.length === 1 && /^[A-Z]{3}[A-Z]\d+$/.test(toks[0])){
+    let known = null;
+    for (const o in RT) for (const e of RT[o]) if (e[5] === toks[0]){ known = e[1]; break; }
+    return { id:toks[0], r: known || '', lo:3000, hi:17000, kind:'Your TEC route', custom:true,
+      n: known ? 'Your TEC route (spelled out from the FAA database if you ask)' : 'Your TEC route — not in the FAA database, so it can\'t be spelled out' };
+  }
+  return { id:'', r:toks.join(' '), lo:3000, hi:17000, kind:'Your route', custom:true, n:'Your route' };
+}
+function curRoute(){
+  if ($('route').value === 'custom') return customRoute();
+  return S.opts[+$('route').value] || null;
+}
+function fillRoutes(){
+  S.opts = routeOptions(depK(), destK(), $('cls').value);
+  $('route').innerHTML = S.opts.map((r,i) => `<option value="${i}">${r.id ? r.id + ' — ' : ''}${r.r}</option>`).join('')
+    + '<option value="custom">Enter my own route…</option>';
+  if (S.userCustom || !S.opts.length) $('route').value = 'custom';
+  syncRouteBox();
+}
+function syncRouteBox(){
+  $('myRouteWrap').classList.toggle('hidden', $('route').value !== 'custom');
+  fillAlts(); showRouteInfo(); fillDepDetails(false);
+}
+function courseMag(){   // dep → dest magnetic course, for odd/even altitudes
+  const a = AP[depK()], b = AP[destK()];
+  if (!a || !b) return 90;
+  return (bearing(a.la, a.lo, b.la, b.lo) - magvarAt(a.la, a.lo) + 360) % 360;
+}
+function fillAlts(){
+  const r = curRoute() || { lo:3000, hi:17000 };
+  const east = courseMag() < 180;   // 91.179: magnetic course 0–179° odd thousands, 180–359° even
+  const opts = [];
+  const top = Math.min(r.hi, 41000, CLS_MAX_ALT[$('cls').value] || 41000);
+  for (let a = Math.max(3000, r.lo); a <= top; a += 1000) if (((a/1000) % 2 === 1) === east) opts.push(a);
+  if (!opts.length){ const a = Math.max(3000, r.lo); opts.push(((a/1000) % 2 === 1) === east ? a : a + 1000); }
+  const sel = $('alt'), prev = +sel.value;
+  sel.innerHTML = opts.map(a => `<option value="${a}">${a >= 18000 ? 'FL' + a/100 : a.toLocaleString()}</option>`).join('');
+  const pick = opts.includes(prev) ? prev : (opts.filter(a => a <= 9000).pop() || opts[0]);
+  sel.value = pick;
+}
+function showRouteInfo(){
+  const r = curRoute();
+  const dk = depK() || $('dep').value.trim().toUpperCase(), tk = destK() || $('dest').value.trim().toUpperCase();
+  $('faLink').href = `https://flightaware.com/statistics/ifr-route/${encodeURIComponent(dk)}/${encodeURIComponent(tk)}`;
+  $('faLink').title = 'FlightAware: recently filed routes (filed, not necessarily flown as filed; for suggestion only)';
+  const ff = FFCACHE[depK() + '-' + destK()];
+  $('ffNote').textContent = ff ? `ForeFlight routes loaded ${ff.at}${ff.ac ? ' for ' + ff.ac : ''}.` : '';
+  if (ff && FF_HIDDEN) $('ffNote').textContent += ` ${FF_HIDDEN} of ${ff.routes.length} hidden: only filed at ${(CLS_MAX_ALT[$('cls').value] + 1000).toLocaleString()} ft and up, above piston altitudes.`;
+  if (r && r.r && isProc(r.r.split(/\s+/)[0]))
+    $('ffNote').textContent += ` This route starts with the ${r.r.split(/\s+/)[0]} departure; the clearance uses it in place of the departure procedure in Departure details.`;
+  if (!depK() || !destK()){ $('routeInfo').innerHTML = '<span class="warn">Enter a departure and destination the app knows.</span> Your own route still works with Departure details filled in.'; return; }
+  if (!r){
+    $('routeInfo').innerHTML = (S.opts.length ? '' : '<span class="warn">No FAA preferred or TEC route, and no ATC-cleared route in the library, for this pair and aircraft class: if you leave this empty, you\'ll be cleared direct.</span> Try "Get routes from ForeFlight", or ')
+      + 'paste or type your route: fixes and airways after the departure (e.g. HENER V186 DARTS V597 MZB), or a TEC code like SBAQ27.';
+    return;
+  }
+  $('routeInfo').innerHTML = `<span class="route-chip">${r.id ? r.id + ': ' : ''}${r.r || '(route not in database)'}</span><br>${r.n}. Altitudes ${r.lo.toLocaleString()}–${r.hi.toLocaleString()} ft, ${courseMag() < 180 ? 'odd' : 'even'} thousands for the direction of flight.`;
+}
+/* Departure details: prefilled from data, editable. full=true also resets the facility/procedure fields (departure changed). */
+function fillDepDetails(full){
+  const k = depK(), a = AP[k];
+  const kd = KNOWN_DEP[k];
+  if (full){
+    const city = k ? (SPOKEN[k] || spokenName(k)) : '';
+    // Who issues the clearance: Clearance Delivery, else Ground, else Tower, else the approach/center listed for the field
+    // (a.ar = [freq, facility, borrowedFromIdent?]; borrowed = nearest field that lists one, within 80 km).
+    const loc = a && (a.cd ? ['Clearance', a.cd] : a.g ? ['Ground', a.g] : a.t ? ['Tower', a.t] : null);
+    $('dFac').value = loc ? `${city} ${loc[0]}` : (a && a.ar ? a.ar[1] : '');
+    $('dCall').value = loc ? loc[1] : (a && a.ar ? a.ar[0] : '');
+    $('dDpW').value = kd ? kd.dpW : '';
+    $('dDpS').value = kd ? kd.dpS : '';
+    $('dVec').checked = kd ? kd.vec : true;
+    $('dInit').value = kd ? kd.init : (a ? Math.max(3000, Math.ceil((a.e + 2000) / 1000) * 1000) : 3000);
+    $('dExp').value = kd ? kd.exp : 10;
+    $('dGnd').value = a ? (a.g || '') : '';
+    $('dVfr').value = a ? Math.max(1500, Math.round((a.e + 1500) / 500) * 500) : 1500;   // typical: about 1,500 ft above the field; edit to the local practice
+    const arNote = a && !(a.cd || a.g || a.t) ? (a.ar
+        ? (a.ar[2] ? ` No ATC frequency is listed for this field; ${a.ar[1]} ${a.ar[0]} is borrowed from nearby ${a.ar[2]}, so check it against the Chart Supplement.` : ` No local ATC; clearance from ${a.ar[1]} ${a.ar[0]}, as listed for this field.`)
+        : ' No ATC frequency on file for this field: enter the facility and frequency from the Chart Supplement.') : '';
+    const fsrc = a && a.src === 'nasr' ? ` Frequencies: FAA NASR, effective ${fmtDay(NASR.meta.effective)}.` : ' Frequencies: OurAirports.';
+    $('depSrc').textContent = (kd ? kd.src + fsrc : (a ? 'Typical defaults; no departure procedure on file for this airport. Check against your charts.' + fsrc : 'Departure not found — fill these in from your charts.')) + arNote;
+    $('depSetNote').textContent = kd ? '' : '(check against your charts)';
+  }
+  $('dFreq').value = pickDepFreq();
+  syncVfrOption();
+  updateRadio();
+}
+/* "VFR departing Class C" is offered only when the departure is Class C per the FAA class-airspace data.
+   Without FAA data (e.g. off the live site) it's offered at towered fields, marked unconfirmed. */
+function classCState(){
+  const a = AP[depK()]; if (!a) return 'no';
+  if (a.cc === 1) return 'yes';
+  if (NASR && NASR.meta && NASR.meta.classC) return 'no';
+  return a.t ? 'maybe' : 'no';
+}
+function syncVfrOption(){
+  const st = classCState(), o = $('optVfr');
+  o.hidden = o.disabled = st === 'no';
+  o.textContent = st === 'maybe' ? 'VFR departing Class C (Class C not confirmed)' : 'VFR departing Class C';
+  if (st === 'no' && $('style').value === 'vfrc'){ $('style').value = 'full'; savePrefs(); }
+}
+function pickDepFreq(){
+  const k = depK(), a = AP[k];
+  if (a && (!a.d || !a.d.length) && a.ar && !(a.cd || a.g || a.t)) return a.ar[0];   // no local ATC: departure is the same approach/center
+  if (!a || !a.d || !a.d.length) return $('dFreq').value || '';
+  // bearing from the airport to the first fix with a known position (else the destination)
+  const r = curRoute(); let p = null;
+  if (r && r.r) for (const t of r.r.split(/\s+/)){ p = posOf(t); if (p) break; }
+  if (!p && AP[destK()]) p = [AP[destK()].la, AP[destK()].lo];
+  if (p){
+    const brg = Math.round((bearing(a.la, a.lo, p[0], p[1]) - magvarAt(a.la, a.lo) + 360) % 360);
+    for (const [f, desc] of a.d){
+      const m = /(\d{3})\s*-\s*(\d{3})/.exec(desc || '');
+      if (!m) continue;
+      const lo = +m[1], hi = +m[2];
+      if (lo <= hi ? (brg >= lo && brg <= hi) : (brg >= lo || brg <= hi)) return f;
+    }
+  }
+  const dep = a.d.find(x => /DEP/i.test(x[1])); return (dep || a.d[0])[0];
+}
+function updateRadio(){
+  const has = !!$('dCall').value;
+  $('freq').textContent = has ? (+$('dCall').value).toFixed(3) : '---.---';
+  $('fac').textContent = has ? ($('dFac').value || 'Clearance') : 'No frequency on file: set it in Departure details';
+  $('fac').classList.toggle('warn', !has);
+}
+function facName(){ return $('dFac').value.trim() || 'Clearance'; }
+function shortTail(){
+  const t = $('tail').value.trim().toUpperCase(), p = $('prefix').value.trim();
+  return (p ? p + ' ' : '') + (/^N\d/.test(t) ? t.slice(1) : t);
+}
+function showGradInfo(){
+  const g = $('style').value === 'grad';
+  $('gradInfo').classList.toggle('hidden', !g);
+  if (g) $('gradInfo').innerHTML = `Level <b style="color:var(--amber)">${S.level} of 5</b>: ${LEVELS[S.level].name}. Up a level after a first-try readback with no say-again; down after three misses. <a href="#" id="gradReset" style="color:var(--text-muted)">Start over at level 1</a>`;
+  const a = $('gradReset'); if (a) a.onclick = e => { e.preventDefault(); S.level = 1; savePrefs(); showGradInfo(); };
+}
+
+/* =====================================================================
+   ONE PLACE THAT SETS BUTTONS FROM THE PHASE
+   phase: idle → ready (ATC said "advise ready to copy") → reading → copied
+   ===================================================================== */
+function ui(){
+  const ph = S.phase, t = S.talking, c = S.clr;
+  const call = $('btnCall');
+  call.textContent = ph === 'ready' ? 'Ready to copy (no mic)' : 'Send my call (no mic)';
+  call.disabled = t || !(ph === 'idle' || ph === 'ready');
+  $('btnSayAgain').disabled = t || ph !== 'copied' || S.done;
+  $('btnRoute').disabled = t || ph !== 'copied' || S.done || !c || c.routeMode !== 'tec' || !c.expansion;
+  const pttOn = !t && (ph === 'idle' || ph === 'ready' || (ph === 'copied' && !S.done && REC_OK));
+  document.querySelectorAll('[data-ptt]').forEach(b => { if (!R.down) b.disabled = !pttOn; });
+  pttLabel();
+  $('pilotScript').classList.toggle('hidden', ph === 'copied' && S.done);
+  $('nextRow').classList.toggle('hidden', !(ph === 'copied' && S.done));
+  $('btnPause').disabled = !PL.active;
+  $('btnPause').textContent = PL.paused ? '▶ Resume' : '⏸ Pause';
+  $('btnBack').disabled = !PL.active;
+  $('btnFF').disabled = !depK() || !destK();
+  $('btnReplay').disabled = !(PL.active || (ph === 'copied' && !t));
+  $('btnCheckTyped').disabled = t || ph !== 'copied' || S.done;
+  $('typedRb').classList.toggle('hidden', ph !== 'copied' || S.done);
+  $('btnShow').disabled = ph !== 'copied';
+  const dest = destK() || $('dest').value.trim().toUpperCase();
+  const lines = {
+    idle:   `${facName()}, ${shortTail()}, ${$('style').value === 'vfrc' ? 'VFR' : 'IFR'} to ${dest || '(destination)'}.`,
+    ready:  `Ready to copy, ${shortTail()}.`,
+    reading:'(copy the clearance)',
+    copied: S.done ? '' : `Read back the clearance, ending with ${shortTail()}. Or "say again"${c && c.routeMode === 'tec' && c.expansion ? ', or "request full route"' : ''}.`
+  };
+  $('pilotLine').textContent = lines[ph] || '';
+}
+
+/* =====================================================================
+   BUILD A CLEARANCE
+   ===================================================================== */
+function randSquawk(){
+  const bad = new Set(['1200','1255','1277','7400','7500','7600','7700','7777','0000','2000']);
+  let s;
+  do { s = String(2 + Math.floor(Math.random()*5)) + [0,0,0].map(() => Math.floor(Math.random()*8)).join(''); } while (bad.has(s));
+  return s;
+}
+/* → { style:'filed'|'route'|'amend', expand, rateMul, gap, art, join } */
+function resolveStyle(hasAlt){
+  let st = $('style').value, expand = false, rateMul = 1, timing = DEFAULT_TIMING;
+  if (st === 'grad'){ const L = LEVELS[S.level]; st = L.style; expand = L.expand; rateMul = L.rate; timing = L; }
+  else if (st === 'mix'){ const pool = ['full','full','expanded','filed'].concat(hasAlt ? ['amend'] : []); st = pool[Math.floor(Math.random()*pool.length)]; }
+  if (st === 'vfrc') return { style:'vfrc', expand:false, rateMul, gap:timing.gap, art:timing.art, join:timing.join };
+  if (st === 'full') st = 'route';
+  if (st === 'expanded'){ st = 'route'; expand = true; }
+  if (st === 'amend' && !hasAlt){ st = 'route'; }
+  return { style:st, expand, rateMul, gap:timing.gap, art:timing.art, join:timing.join };
+}
+function buildClearance(){
+  // No stored route and nothing typed: ATC clears you direct (pilot can still type a route to practise a real one).
+  const filed = curRoute() || { id:'', r:'', lo:3000, hi:17000, kind:'direct', n:'No stored route for this pair: cleared direct' };
+  const dk = destK(), destIdent = dk || $('dest').value.trim().toUpperCase();
+  if (!destIdent) return null;
+  const filedAlt = +$('alt').value;
+  const others = S.opts.filter(r => r.r && r.r !== filed.r && filedAlt >= r.lo && filedAlt <= r.hi);
+  const rs = resolveStyle(others.length > 0);
+  const route = rs.style === 'amend' ? others[Math.floor(Math.random()*others.length)] : filed;
+  const toks = route.r ? route.r.split(/\s+/) : [];
+  let dp = { id:$('dDpW').value.trim().toUpperCase(), spoken:$('dDpS').value.trim(), vectors:$('dVec').checked };
+  if (toks.length && isProc(toks[0])){   // route starts with a departure procedure (e.g. GAUCH3): it replaces the one in Departure details
+    const sid = toks.shift();
+    dp = { id:sid, spoken:sayProc(sid) + ' departure', vectors:false };
+  }
+  const c = {
+    tail:$('tail').value.toUpperCase().replace(/[^A-Z0-9]/g,''), callSay:sayTail($('tail').value, $('prefix').value),
+    fac:facName(), gnd:$('dGnd').value.trim(), destIdent, destSay: dk ? spokenName(dk) : '',
+    style:rs.style, rateMul:rs.rateMul, gap:rs.gap, art:rs.art, join:rs.join,
+    routeMode: (rs.style !== 'filed' && route.id && (!rs.expand || !toks.length)) ? 'tec' : 'fixes',
+    dp,
+    firstFix:toks[0] || '', restToks:toks.slice(1), allToks:toks,
+    init:+$('dInit').value || 0, filed:filedAlt, expectMin:+$('dExp').value || 10,
+    freq:$('dFreq').value.trim(), squawk:randSquawk(), routeId:route.id, routeStr:route.r,
+    filedStr:(filed.id ? filed.id + ' ' : '') + filed.r
+  };
+  c.vfr = rs.style === 'vfrc';
+  c.vfrAlt = +$('dVfr').value || 1500;
+  c.void = c.vfr ? null : voidTimes(c.fac);
+  c.parts = clearanceParts(c);
+  c.expansion = expansionPart(c);
+  return c;
+}
+function fixesPart(c){
+  const vec = c.dp && c.dp.vectors && c.firstFix;
+  if (vec){
+    const rest = c.restToks;
+    return { text:[`RV ${c.firstFix}`, rest.length ? 'then ' + rest.join(' ') : '', 'direct'].filter(Boolean).join(', '),
+             say: [`radar vectors ${sayFix(c.firstFix)}`, rest.length ? 'then ' + sayRoute(rest) : '', 'direct'].filter(Boolean).join(', ') };
+  }
+  if (!c.allToks.length) return { text:'direct', say:'direct' };
+  return { text:[c.allToks.join(' '), 'direct'].filter(Boolean).join(', '),
+           say: [sayRoute(c.allToks), 'direct'].filter(Boolean).join(', ') };
+}
+/* Release + void time when the clearance comes from Approach or Center (non-towered field), per FAA JO 7110.65 §4-3-4:
+   "RELEASED FOR DEPARTURE … CLEARANCE VOID IF NOT OFF BY (time) … IF NOT OFF BY (time), ADVISE (facility) NOT LATER THAN (time)
+   OF INTENTIONS … TIME (hours, minutes, nearest quarter minute)". Pilot must advise within 30 min of the void time.
+   Times are UTC (Zulu), as ATC uses. Void time = now + 10 min, rounded up to the next 5 minutes. */
+function voidTimes(fac){
+  if (!/\b(approach|center|centre|departure|radio)\b/i.test(fac || '')) return null;
+  const now = new Date();
+  const hhmm = d => String(d.getUTCHours()).padStart(2,'0') + String(d.getUTCMinutes()).padStart(2,'0');
+  const v = new Date(now.getTime() + 10*60000); v.setUTCSeconds(0, 0);
+  v.setUTCMinutes(Math.ceil(v.getUTCMinutes() / 5) * 5);
+  const nlt = new Date(v.getTime() + 30*60000);
+  const q = Math.round(now.getUTCSeconds() / 15);
+  const t = new Date(now.getTime()); t.setUTCSeconds(0,0); if (q === 4) t.setUTCMinutes(t.getUTCMinutes() + 1);
+  return { fac, voidT:hhmm(v), nlt:hhmm(nlt), now:hhmm(t), q: q % 4 };
+}
+function clearanceParts(c){
+  const P = [];
+  if (c.vfr){   // VFR departure from a Class C primary airport: no C or R; A = VFR altitude limit, then F and T as normal
+    const dsep = c.art ? ', ' : ' ';
+    P.push({ k:'A', text:`Maintain VFR at or below ${c.vfrAlt.toLocaleString()}`, say:`maintain VFR at or below ${sayAlt(c.vfrAlt)}` });
+    P.push({ k:'F', text:`Departure frequency ${c.freq}`, say:`departure frequency, ${sayDigits(c.freq, dsep)}` });
+    P.push({ k:'T', text:`Squawk ${c.squawk}`, say:`squawk, ${sayDigits(c.squawk, dsep)}` });
+    return P;
+  }
+  const dName = c.destSay || sayLetters(c.destIdent);
+  P.push({ k:'C', text:`Cleared to ${c.destIdent}${c.destSay ? ' (' + c.destSay + ')' : ''}`,
+    say:`cleared to ${/(airport|field|international)$/i.test(dName) ? dName : dName + ' airport'}` });
+  const dp = c.dp || {};
+  const hasDp = !!(dp.id || dp.spoken);
+  const lead = hasDp ? `via ${dp.id || dp.spoken}` : '';
+  const leadSay = hasDp ? `via the ${dp.spoken || sayLetters(dp.id)}` : '';
+  let rt, rs;
+  if (c.style === 'filed'){
+    const vec = dp.vectors && c.firstFix;
+    rt = [lead, vec ? `RV ${c.firstFix}` : '', 'then as filed'].filter(Boolean).join(', ');
+    rs = [leadSay, vec ? `radar vectors ${sayFix(c.firstFix)}` : '', 'then as filed'].filter(Boolean).join(', ');
+  } else if (c.routeMode === 'tec'){
+    rt = lead ? `${lead}, then ${c.routeId}` : `via ${c.routeId}`;
+    rs = leadSay ? `${leadSay}, then ${sayTec(c.routeId)}` : `via ${sayTec(c.routeId)}`;
+  } else {
+    const f = fixesPart(c);
+    rt = [lead, f.text].filter(Boolean).join(', ');
+    rs = [leadSay, f.say].filter(Boolean).join(', ');
+  }
+  P.push({ k:'R', text:rt, say:rs });
+  let at, as;
+  const fmt = a => a >= 18000 ? 'FL' + a/100 : a.toLocaleString();
+  if (c.init && c.filed && c.filed > c.init){
+    at = `Maintain ${fmt(c.init)}, expect ${fmt(c.filed)} ${c.expectMin} min after departure`;
+    as = `maintain ${sayAlt(c.init)}, expect ${sayAlt(c.filed)} ${numWords(c.expectMin)} minutes after departure`;
+  } else {
+    const a = c.filed || c.init;
+    at = `Climb and maintain ${a ? fmt(a) : '?'}`; as = `climb and maintain ${sayAlt(a)}`;
+  }
+  P.push({ k:'A', text:at, say:as });
+  const dsep = c.art ? ', ' : ' ';
+  P.push({ k:'F', text:`Departure frequency ${c.freq}`, say:`departure frequency, ${sayDigits(c.freq, dsep)}` });
+  P.push({ k:'T', text:`Squawk ${c.squawk}`, say:`squawk, ${sayDigits(c.squawk, dsep)}` });
+  if (c.void){
+    const v = c.void, quarter = ['', ' and one quarter', ' and one half', ' and three quarters'][v.q];
+    P.push({ k:'V', text:`Released for departure, void if not off by ${v.voidT}Z; if not off, advise ${v.fac} NLT ${v.nlt}Z. Time ${v.now}${['','¼','½','¾'][v.q]}Z`,
+      say:`released for departure, clearance void if not off by ${sayDigits(v.voidT, dsep)}, if not off by ${sayDigits(v.voidT, dsep)}, advise ${v.fac} not later than ${sayDigits(v.nlt, dsep)} of intentions. Time, ${sayDigits(v.now, dsep)}${quarter}` });
+  }
+  return P;
+}
+function expansionPart(c){
+  if (!c.routeId || !c.allToks.length) return null;
+  const f = fixesPart(c);
+  return { text:`${c.routeId}: ${f.text}`, say:`${sayTec(c.routeId)} is, ${f.say}` };
+}
+
+/* =====================================================================
+   RADIO AUDIO: static bed + squelch clicks (Web Audio, no files)
+   ===================================================================== */
+const A = { ctx:null, bedGain:null };
+function ensureAudio(){
+  try {
+    if (!A.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      A.ctx = new AC();
+      const sr = A.ctx.sampleRate, buf = A.ctx.createBuffer(1, sr * 2, sr), d = buf.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < d.length; i++){ const w = Math.random()*2 - 1; b0 = .99765*b0 + w*.0990460; b1 = .96300*b1 + w*.2965164; b2 = .57000*b2 + w*1.0526913; d[i] = (b0 + b1 + b2 + w*.1848) * .11; }
+      A.noiseBuf = buf;
+      const src = A.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+      const bp = A.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1600; bp.Q.value = 0.6;
+      A.bedGain = A.ctx.createGain(); A.bedGain.gain.value = 0;
+      src.connect(bp).connect(A.bedGain).connect(A.ctx.destination); src.start();
+    }
+    if (A.ctx.state === 'suspended') A.ctx.resume();
+    return A.ctx;
+  } catch (e) { return null; }
+}
+function squelchClick(level){
+  if (!A.ctx || !$('squelch').checked) return;
+  const t = A.ctx.currentTime, src = A.ctx.createBufferSource(); src.buffer = A.noiseBuf;
+  const g = A.ctx.createGain(); const hp = A.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5 * level, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+  src.connect(hp).connect(g).connect(A.ctx.destination); src.start(t, Math.random()); src.stop(t + 0.16);
+}
+function radioOn(){
+  setRx(true);
+  if (!ensureAudio()) return;
+  const lvl = +$('noise').value, t = A.ctx.currentTime;
+  squelchClick(Math.max(lvl, 0.35));
+  A.bedGain.gain.cancelScheduledValues(t); A.bedGain.gain.setTargetAtTime(lvl * 0.6, t + 0.03, 0.02);
+}
+function radioOff(){
+  setRx(false);
+  if (!A.ctx) return;
+  const t = A.ctx.currentTime;
+  A.bedGain.gain.cancelScheduledValues(t); A.bedGain.gain.setTargetAtTime(0, t, 0.02);
+  squelchClick(Math.max(+$('noise').value, 0.35));
+}
+function setRx(on){ $('rx').classList.toggle('on', !!on); }
+
+/* =====================================================================
+   TEXT TO SPEECH
+   Speech is started inside the click/press itself: Safari (and sometimes Chrome)
+   silently drops speech that starts after a timer.
+   ===================================================================== */
+let VOICES = [];
+function loadVoices(){
+  if (!('speechSynthesis' in window)) return;
+  VOICES = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+  const sel = $('voice');
+  sel.innerHTML = VOICES.map((v,i) => `<option value="${i}">${v.name} (${v.lang})</option>`).join('') || '<option value="">Default</option>';
+  let idx = VOICES.findIndex(v => v.name === PREFS.voice);
+  for (const want of [/^Samantha\b/i, /Google US English/i, /^Alex\b/i, /^Aaron\b/i]){   // in this order of preference
+    if (idx >= 0) break;
+    idx = VOICES.findIndex(v => /en-US/i.test(v.lang) && want.test(v.name));
+  }
+  if (idx < 0) idx = VOICES.findIndex(v => /en-US/i.test(v.lang));
+  if (idx >= 0) sel.value = String(idx);
+}
+let speechUnlocked = false;
+function unlockSpeech(){
+  if (speechUnlocked || !('speechSynthesis' in window)) return;
+  speechUnlocked = true;
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+}
+function makeUtt(text, rate){
+  const u = new SpeechSynthesisUtterance(text);
+  const v = VOICES[+$('voice').value];
+  u.rate = Math.min(2, rate); u.pitch = +$('pitch').value || 1; u.volume = +$('vol').value; u.lang = 'en-US'; if (v) u.voice = v;
+  return u;
+}
+let speakToken = 0;
+function speakSeq(lines, onDone, onLine, rateMul){
+  S.talking = true; ui();
+  const finish = () => { S.talking = false; radioOff(); ui(); onDone && onDone(); };
+  if (!('speechSynthesis' in window)){ lines.forEach((_,i) => onLine && onLine(i)); finish(); return; }
+  speechSynthesis.cancel();
+  const my = ++speakToken;
+  const rate = (+$('rate').value || 1) * (rateMul || 1);
+  radioOn();
+  let i = 0;
+  const next = () => {
+    if (my !== speakToken) return;
+    if (i >= lines.length){ finish(); return; }
+    const idx = i, text = lines[i++];
+    const u = makeUtt(text, rate);
+    let fired = false;
+    const go = () => { if (fired) return; fired = true; setTimeout(next, 160 / rate); };
+    u.onend = go; u.onerror = go;
+    onLine && onLine(idx);
+    speakNow(u);
+    const est = 1200 + text.split(/\s+/).length * 450 / rate;
+    const poll = () => { if (fired || my !== speakToken) return; if (!speechSynthesis.speaking) go(); else setTimeout(poll, 500); };
+    setTimeout(poll, est);
+  };
+  next();   // synchronously, inside the user's click
+}
+/* iOS Safari sometimes keeps talking after cancel(). pause() first, then cancel(), and cancel again a beat later.
+   Because pause() leaves the engine paused, resume() must run before the next speak(). */
+function hardStop(){
+  if (!('speechSynthesis' in window)) return;
+  try { speechSynthesis.pause(); } catch (e) {}
+  speechSynthesis.cancel();
+  setTimeout(() => { if (speechSynthesis.speaking) speechSynthesis.cancel(); }, 60);
+}
+function speakNow(u){ try { speechSynthesis.resume(); } catch (e) {} speechSynthesis.speak(u); }
+function stopSpeech(){
+  speakToken++; PL.tok++; PL.active = false; PL.paused = false;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  if (S.talking){ S.talking = false; radioOff(); }
+}
+
+/* =====================================================================
+   CLEARANCE PLAYER — Pause / Back 3 s / Replay.
+   Position by word: speech-engine word boundaries when sent, else elapsed time.
+   ===================================================================== */
+const PL = { lines:[], li:0, wi:0, base:0, t0:0, lastB:-1, paused:false, active:false, tok:0, rate:1, gap:0, onLine:null, onDone:null };
+const WPS = 2.6;
+const lineWords = li => PL.lines[li].split(/\s+/);
+function plStart(lines, opts){
+  stopSpeech();
+  Object.assign(PL, { lines, rate:opts.rate, gap:opts.gap, onLine:opts.onLine, onDone:opts.onDone, paused:false, active:true, li:0, wi:0 });
+  S.talking = true; radioOn(); ui();
+  plPlay(0, 0);
+}
+function plPlay(li, wi){
+  const my = ++PL.tok;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  if (li >= PL.lines.length){ plEnd(); return; }
+  PL.li = li; PL.base = wi; PL.wi = wi; PL.lastB = -1;
+  PL.onLine && PL.onLine(li);
+  if (!('speechSynthesis' in window)){ plPlay(li + 1, 0); return; }
+  const words = lineWords(li).slice(wi);
+  const offsets = []; let pos = 0; words.forEach(w => { offsets.push(pos); pos += w.length + 1; });
+  const u = makeUtt(words.join(' '), PL.rate);
+  u.onstart = () => { if (my === PL.tok) PL.t0 = performance.now(); };
+  u.onboundary = e => { if (my !== PL.tok) return; let k = 0; while (k + 1 < offsets.length && offsets[k+1] <= e.charIndex) k++; PL.lastB = k; };
+  let fired = false;
+  const go = () => {
+    if (fired || my !== PL.tok) return; fired = true;
+    setTimeout(() => { if (my === PL.tok && !PL.paused) plPlay(li + 1, 0); }, PL.gap);
+  };
+  u.onend = go; u.onerror = go;
+  PL.t0 = performance.now();
+  speakNow(u);
+  const est = 1200 + words.length * 1000 / (WPS * PL.rate);
+  const poll = () => { if (fired || my !== PL.tok) return; if (!speechSynthesis.speaking) go(); else setTimeout(poll, 500); };
+  setTimeout(poll, est);
+}
+function plPos(){
+  const n = lineWords(PL.li).length;
+  const k = PL.lastB >= 0 ? PL.lastB : Math.floor((performance.now() - PL.t0) / 1000 * WPS * PL.rate);
+  return Math.min(n - 1, PL.base + Math.max(0, k));
+}
+function plEnd(){
+  PL.active = false; PL.paused = false;
+  S.talking = false; radioOff(); ui();
+  const cb = PL.onDone; PL.onDone = null; cb && cb();
+}
+function plPause(){
+  if (!PL.active) return;
+  if (PL.paused){ PL.paused = false; radioOn(); plPlay(PL.li, PL.wi); ui(); return; }
+  PL.wi = plPos(); PL.paused = true; PL.tok++;
+  hardStop(); radioOff(); setRx(false); ui();
+}
+function plBack(sec){
+  if (!PL.active) return;
+  let li = PL.li, wi = PL.paused ? PL.wi : plPos();
+  let n = Math.max(1, Math.round(sec * WPS * PL.rate));
+  while (n > 0){
+    if (wi >= n){ wi -= n; n = 0; }
+    else if (li === 0){ wi = 0; n = 0; }
+    else { n -= wi; li--; wi = lineWords(li).length; }
+  }
+  wi = Math.min(wi, lineWords(li).length - 1);
+  if (PL.paused){ PL.paused = false; radioOn(); }
+  plPlay(li, wi); ui();
+}
+function onReplay(){
+  if (PL.active){ if (PL.paused){ PL.paused = false; radioOn(); } plPlay(0, 0); ui(); return; }
+  if (S.phase === 'copied' && !S.talking){ if (!S.done) S.sayAgains++; readClearance(); }
+}
+
+/* =====================================================================
+   CALL FLOW
+   ===================================================================== */
+function resetCall(){
+  stopSpeech(); stopRec(true);
+  S.phase = 'idle'; S.clr = null; S.tries = 0; S.sayAgains = 0; S.done = false; S.acc = null;
+  $('clrText').classList.add('hidden');
+  $('atcBox').classList.add('hidden'); $('scoreBox').classList.add('hidden');
+  setHeard(''); setStatus('', ''); $('rbLog').innerHTML = '';
+  $('typedRb').value = '';
+  $('callSub').textContent = '';
+  ['tC','tR','tA','tF','tT','tV'].forEach(id => $(id).value = '');
+  padClear();
+  ui();
+}
+function atcShow(html){ $('atcBox').classList.remove('hidden'); $('atcLine').innerHTML = html; }
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+function styleLabel(c){
+  const base = c.vfr ? 'VFR departing Class C' : c.style === 'filed' ? 'cleared as filed' : c.style === 'amend' ? 'amended route' : (c.routeMode === 'tec' ? 'TEC route by name' : 'route spelled out');
+  return ($('style').value === 'grad' ? `level ${S.level} · ` : '') + base;
+}
+// A call that can't go through says why where the pilot is looking (status line above the pad), not just in the panel header.
+function callFail(msg){
+  $('callSub').innerHTML = '<span class="warn">' + esc(msg) + '</span>';
+  setStatus('✗ ' + msg, 'no');
+}
+function onCall(){
+  if (S.talking) return;
+  unlockSpeech(); ensureAudio();
+  if (S.phase === 'idle'){
+    const c = buildClearance();
+    if (!c){ callFail('No answer: enter a destination first.'); return; }
+    if (!$('dCall').value){ callFail('No answer: add the clearance facility and frequency in Departure details.'); $('depSet').open = true; return; }
+    if (!c.freq){ callFail('No answer: add a departure frequency in Departure details.'); $('depSet').open = true; return; }
+    S.clr = c; S.phase = 'ready';
+    $('callSub').textContent = '';
+    if (c.vfr) readClearance();   // a VFR departure clearance is short: Clearance issues it right away, no "advise ready to copy"
+    else sayReadyPrompt();
+  } else if (S.phase === 'ready'){
+    readClearance();
+  }
+}
+function sayReadyPrompt(){
+  const c = S.clr;
+  const amend = c.style === 'amend' ? 'I have an amended clearance, ' : '';
+  atcShow(esc(`${shortTail()}, ${c.fac}, ${amend}advise ready to copy.`));
+  stopRec(true);
+  speakSeq([`${c.callSay}, ${c.fac}, ${amend}advise ready to copy.`], () => warmRec(), null, c.rateMul);
+}
+function readClearance(){
+  const c = S.clr; if (!c) return;
+  stopRec(true);
+  S.phase = 'reading';
+  const learn = $('learn').checked;
+  const head = esc(shortTail()) + ',';
+  atcShow(learn ? head : '(reading your clearance — copy it down)');
+  const lines = c.join
+    ? [c.callSay + ', ' + c.parts.map(p => p.say).join(', ') + '.']
+    : [c.callSay + ', ' + c.parts[0].say + '.'].concat(c.parts.slice(1).map(p => p.say + '.'));
+  const shown = i => c.join ? c.parts.length : i + 1;
+  plStart(lines, {
+    rate:(+$('rate').value || 1) * (c.rateMul || 1), gap:c.gap ?? 500,
+    onLine: i => { if (learn) atcShow(head + c.parts.slice(0, shown(i)).map(p => `<div><span class="k">${p.k}</span>${esc(p.text)}</div>`).join('')); },
+    onDone: () => {
+      S.phase = 'copied';
+      $('callSub').textContent = styleLabel(c);
+      if (!learn) $('atcBox').classList.add('hidden');
+      ui(); warmRec();
+    }
+  });
+}
+function onSayAgain(){ if (!S.clr || S.done || S.talking) return; S.sayAgains++; readClearance(); }
+function onRequestRoute(){
+  const c = S.clr; if (!c || !c.expansion || S.talking || S.done) return;
+  stopRec(true);
+  if ($('learn').checked) atcShow(esc(`${shortTail()}, ${c.expansion.text}.`));
+  speakSeq([`${c.callSay}, ${c.expansion.say}.`], () => warmRec(), null, c.rateMul);
+}
+
+/* =====================================================================
+   READBACK PARSER (tolerant; lessons carried over from ATC Chair-Fly v3.3–3.6)
+   ===================================================================== */
+const W2D = { zero:'0', oh:'0', one:'1', wun:'1', two:'2', three:'3', tree:'3', four:'4', fower:'4', five:'5', fife:'5',
+  six:'6', seven:'7', eight:'8', nine:'9', niner:'9' };
+const WEAK = { won:'1', when:'1', to:'2', too:'2', tu:'2', for:'4', fore:'4', or:'4', ate:'8', free:'3' };
+const TEENS = { ten:'10', eleven:'11', twelve:'12', thirteen:'13', fourteen:'14', fifteen:'15', sixteen:'16', seventeen:'17', eighteen:'18', nineteen:'19' };
+const TENS = { twenty:'2', thirty:'3', forty:'4', fourty:'4', fifty:'5', sixty:'6', seventy:'7', eighty:'8', ninety:'9' };
+const FILL = new Set(['uh','um','ah','er','and','a','the']);
+const NATO_IN = (() => { const m = {}; NATO.forEach((w,i) => m[w.replace('-','')] = String.fromCharCode(65+i));
+  Object.assign(m, { alfa:'A', juliet:'J', mic:'M', pop:'P', poppa:'P', popper:'P', xray:'X', whisky:'W', kebec:'Q', keybeck:'Q' }); return m; })();
+const STOP = new Set(['cleared','clear','to','the','via','departure','radar','vectors','vector','then','direct','maintain','expect',
+  'minutes','minute','after','frequency','squawk','climb','and','as','filed','airport','field','victor','point','thousand',
+  'roger','read','back','copy','heading','contact','dep','freq','min','rv','squawking','flight','level','santa','barbara','five','route','tec','tech']);
+
+function tokenize(text){
+  return String(text).toLowerCase()
+    .replace(/(\d),(\d{3})/g, '$1$2')
+    .replace(/x-ray/g,'xray')
+    .replace(/([a-z])(\d)/g,'$1 $2').replace(/(\d)([a-z])/g,'$1 $2')
+    .replace(/-/g,' ')
+    .replace(/[^a-z0-9.\s]/g,' ')
+    .replace(/\.(?!\d)/g,' ')
+    .split(/\s+/).filter(Boolean);
+}
+function parse(text, typed){
+  const raw = tokenize(text);
+  const isNumTok = t => /^\d/.test(t) || W2D[t] !== undefined || TEENS[t] || TENS[t] || t === 'thousand' || t === 'hundred' || t === 'point' || t === 'decimal';
+  const toks = raw.map((t,i) => {
+    if (WEAK[t] === undefined) return t;
+    const prev = raw[i-1], next = raw[i+1];
+    return ((prev && isNumTok(prev)) || (next && isNumTok(next)) || (next && NATO_IN[next])) ? WEAK[t] : t;
+  });
+  const chunks = [], words = [], chars = [];
+  let cur = null, pendTens = false, pendThou = false;
+  const flush = () => {
+    if (cur !== null && cur !== '' && cur !== '.'){ const v = cur.replace(/\.$/,''); chunks.push(v); for (const ch of v) if (/\d/.test(ch)) chars.push(ch); }
+    cur = null; pendTens = false; pendThou = false;
+  };
+  for (let i = 0; i < toks.length; i++){
+    const t = toks[i];
+    if (/^\d+(\.\d+)?$/.test(t)){ if (typed) flush(); cur = (cur || '') + t; pendTens = false; if (typed) flush(); continue; }
+    // "one thousand five hundred" -> 1500 (not 1000500)
+    if (pendThou && W2D[t] !== undefined && toks[i+1] === 'hundred'){ cur = cur.slice(0, -3) + W2D[t] + '00'; pendThou = false; i++; continue; }
+    if (W2D[t] !== undefined){
+      pendThou = false;
+      if (pendTens){ cur = cur.slice(0,-1) + W2D[t]; pendTens = false; }
+      else cur = (cur || '') + W2D[t];
+      continue;
+    }
+    if (TEENS[t]){ cur = (cur || '') + TEENS[t]; pendTens = false; continue; }
+    if (TENS[t]){ cur = (cur || '') + TENS[t] + '0'; pendTens = true; continue; }
+    if (t === 'hundred' && cur){ cur += '00'; pendTens = false; continue; }
+    if (t === 'thousand' && cur){ cur += '000'; pendTens = false; pendThou = true; continue; }
+    if ((t === 'point' || t === 'decimal' || t === 'dot') && cur){ cur += '.'; pendTens = false; continue; }
+    if (FILL.has(t) && cur !== null && i + 1 < toks.length && isNumTok(toks[i+1])) continue;
+    flush();
+    words.push(t);
+    if (NATO_IN[t]) chars.push(NATO_IN[t]);
+    else if (!STOP.has(t) && /^[a-z]{3,}/.test(t)) chars.push(t[0].toUpperCase() + '?');
+  }
+  flush();
+  const extra = [];
+  chunks.forEach(ch => { const m = /^(\d{1,2}000)(\d{1,4})$/.exec(ch); if (m) extra.push(m[1], m[2]); });
+  return { words, chunks: chunks.concat(extra), compact: chunks.join('').replace(/\./g,''), chars, text: raw.join(' ') };
+}
+function lev(a, b){
+  if (a === b) return 0; const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({length:n+1}, (_,j) => j);
+  for (let i = 1; i <= m; i++){ const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = cur; }
+  return prev[n];
+}
+function hasPhrase(p, phrase){
+  const ph = phrase.toLowerCase().split(/\s+/);
+  const w = p.words;
+  for (let i = 0; i + ph.length <= w.length; i++){
+    let ok = true;
+    for (let j = 0; j < ph.length; j++){
+      const a = w[i+j], b = ph[j];
+      const tol = b.length >= 7 ? 2 : (b.length >= 4 ? 1 : 0);
+      if (!(a === b || (tol && lev(a,b) <= tol))){ ok = false; break; }
+    }
+    if (ok) return true;
+  }
+  return ph.length > 1 && w.includes(ph.join(''));
+}
+const COMMON = new Set(['santa','san','paso','palm','seal','mission','morro','van','los','las','el','la','new','north','south','east','west','lake','fort','port','saint']);
+const sigWords = s => String(s).toLowerCase().split(/[\s-]+/).filter(w => w.length >= 4 && !COMMON.has(w) && !['departure','airport','field'].includes(w));
+function letterSeq(p){ return p.words.map(w => NATO_IN[w] || (/^[a-z]$/.test(w) ? w.toUpperCase() : '|')).join(''); }
+function spelled(p, ident){ return ident.length >= 2 && letterSeq(p).includes(ident.toUpperCase()); }
+function matchFix(p, tok){
+  const lo = tok.toLowerCase();
+  if (p.words.includes(lo)) return true;
+  const said = sayFix(tok);
+  if (said && !/^[a-z]+ [a-z]+ [a-z]+$/.test(said) && hasPhrase(p, said)) return true;
+  if (sigWords(said).some(w => hasPhrase(p, w))) return true;
+  if (tok.length === 5 && hasPhrase(p, lo)) return true;
+  return spelled(p, tok);
+}
+function matchAirway(p, tok){ const n = tok.slice(1); return p.chunks.some(c => c === n) || p.compact.includes(n); }
+function matchTec(p, id){   // SBAQ27: number, plus letters or "<city> quebec"
+  const m = /^([A-Z]{3})([A-Z])(\d+)$/.exec(id); if (!m) return p.words.includes(id.toLowerCase());
+  const num = m[3];
+  const numOk = p.chunks.includes(num) || p.compact.includes(num);
+  const seq = letterSeq(p);
+  const letterOk = seq.includes(m[2]) || p.words.some(w => ['q','queue','cue','kew'].includes(w) && m[2] === 'Q') || p.words.includes((m[1] + m[2]).toLowerCase());
+  return numOk && letterOk;
+}
+function matchAlt(p, ft, typed){
+  const s = String(ft);
+  if (p.chunks.includes(s)) return true;
+  if (ft >= 18000 && p.chunks.includes(String(ft/100))) return true;
+  if (typed && ft % 1000 === 0 && p.chunks.includes(String(ft/1000))) return true;
+  return !typed && p.compact.includes(s);
+}
+function matchFreq(p, f){
+  const d = String(f).replace(/\./g,'').replace(/0+$/,'');
+  const noOne = d.startsWith('1') ? d.slice(1) : d;
+  return p.compact.includes(d) || (noOne.length >= 3 && p.compact.includes(noOne));
+}
+// Spoken readbacks only: accept a 4+ digit code with one digit off (speech recognition often mishears a single digit).
+function nearDigits(p, want){
+  if (p.compact.includes(want)) return true;
+  const n = want.length; if (n < 4) return false;
+  for (const ch of p.chunks){
+    const d = ch.replace(/\./g,'');
+    for (let i = 0; i + n <= d.length; i++){
+      let diff = 0; for (let j = 0; j < n && diff < 2; j++) if (d[i+j] !== want[j]) diff++;
+      if (diff <= 1) return true;
+    }
+  }
+  return false;
+}
+function matchCallsign(p, tail, prefix){
+  const t = tail.replace(/^N(?=\d)/,'');
+  const last3 = t.slice(-3).split('');
+  const hits = arr => { let k = 0, hit = 0; for (const ch of arr){ const j = last3.indexOf(ch, k); if (j >= 0){ hit++; k = j + 1; } } return hit; };
+  const strong = p.chars.filter(c => !c.endsWith('?'));
+  const weak = p.chars.map(c => c.replace('?',''));
+  if (hits(strong) >= 2 || hits(weak) >= 3) return true;
+  return !!prefix && hasPhrase(p, prefix.split(' ')[0]) && hits(weak) >= 1;
+}
+function grade(text, c, typed){
+  const p = parse(text, typed);
+  const res = {};
+  const id = c.destIdent.toUpperCase(), fid = faaId(id);
+  const cOk = p.words.includes(id.toLowerCase()) || p.words.includes(fid.toLowerCase()) || spelled(p, fid) || spelled(p, id)
+    || sigWords(c.destSay).some(w => hasPhrase(p, w));
+  res.C = { ok:cOk || !!c.vfr, want:`${c.destIdent}${c.destSay ? ' (' + c.destSay + ')' : ''}` };
+  const items = [];
+  if (c.dp && (c.dp.id || c.dp.spoken)){
+    const dpid = (c.dp.id || '').toLowerCase();
+    const sw = sigWords(c.dp.spoken);
+    items.push({ lbl:c.dp.id || c.dp.spoken, hit: sw.some(w => hasPhrase(p, w)) || (dpid && p.words.includes(dpid))
+      || (dpid && p.words.includes(dpid.replace(/\d+$/,'')) && p.chunks.includes(dpid.replace(/^\D+/,''))) });
+  }
+  const fixItems = () => c.allToks.map(tk => ({ lbl:tk, hit: isAirway(tk) ? matchAirway(p, tk) : matchFix(p, tk) }));
+  if (c.style === 'filed'){
+    if (c.dp && c.dp.vectors && c.firstFix) items.push({ lbl:c.firstFix, hit:matchFix(p, c.firstFix) });
+    items.push({ lbl:'as filed', hit: p.words.includes('filed') || (p.words.includes('as') && p.words.includes('field')) });
+  } else if (c.routeMode === 'tec'){
+    const fx = fixItems(), fxHits = fx.filter(i => i.hit).length;
+    items.push({ lbl:c.routeId, hit: matchTec(p, c.routeId) || (fx.length > 0 && fxHits >= Math.ceil(fx.length * 0.6)) });
+  } else {
+    items.push(...fixItems());
+  }
+  if (!items.length) items.push({ lbl:'direct', hit: p.words.includes('direct') || hasPhrase(p, 'direct') });
+  if (c.vfr) items.length = 0;
+  const hits = items.filter(i => i.hit).length;
+  const need = Math.max(1, Math.ceil(items.length * 0.5));   // lenient: half the route items
+  res.R = c.vfr ? { ok:true, items:[], hits:0, need:0 } : { ok: hits >= need, items, hits, need };
+  const aItems = [];
+  if (c.vfr) aItems.push({ lbl:'VFR at or below ' + c.vfrAlt.toLocaleString(), hit:matchAlt(p, c.vfrAlt, typed) });
+  else if (c.init && c.filed && c.filed > c.init){
+    aItems.push({ lbl:c.init.toLocaleString(), hit:matchAlt(p, c.init, typed) });
+    aItems.push({ lbl:'expect ' + c.filed.toLocaleString(), hit:matchAlt(p, c.filed, typed) });
+  } else { const a = c.filed || c.init; aItems.push({ lbl:a.toLocaleString(), hit:matchAlt(p, a, typed) }); }
+  // Lenient: the initial altitude is what must be read back; the "expect" altitude is good practice, not required.
+  if (aItems.length > 1) aItems[1].optional = true;
+  res.A = { ok: aItems.filter(i => !i.optional).every(i => i.hit), items:aItems };
+  const fq = String(c.freq).replace(/\./g,'').replace(/0+$/,'');
+  res.F = { ok: matchFreq(p, c.freq) || (!typed && nearDigits(p, fq.length > 5 ? fq.slice(1) : fq)), want:c.freq };
+  res.T = { ok: p.compact.includes(c.squawk) || (!typed && nearDigits(p, c.squawk)), want:c.squawk };
+  res.CS = { ok: typed ? true : matchCallsign(p, c.tail, $('prefix').value.trim()) };
+  // V: only the void time must be read back (lenient: the not-later-than time and time check aren't graded)
+  res.V = { ok: !c.void || p.compact.includes(c.void.voidT) || (!typed && nearDigits(p, c.void.voidT)), want: c.void ? 'void ' + c.void.voidT + 'Z' : '' };
+  res.all = res.C.ok && res.R.ok && res.A.ok && res.F.ok && res.T.ok && res.V.ok && res.CS.ok;
+  res.heard = p.text;
+  return res;
+}
+
+/* =====================================================================
+   RESULTS + ATC RESPONSE
+   ===================================================================== */
+function setHeard(t){ $('heard').textContent = t; }
+function setStatus(t, cls){ const s = $('status'); s.textContent = t; s.className = 'status' + (cls ? ' ' + cls : ''); }
+function showScore(res, typed){
+  const row = (L, html, ok) => `<span class="L">${L}</span><span class="v">${html}</span><span class="m ${ok ? 'ok' : 'no'}">${ok ? '✓' : '✗'}</span>`;
+  const items = arr => arr.map(i => i.hit ? esc(i.lbl) : i.optional ? `<span style="color:var(--text-muted)" title="Good practice to read back; not required">${esc(i.lbl)} (optional)</span>` : `<span class="miss">${esc(i.lbl)}</span>`).join(' ');
+  let h = '';
+  if (!(S.clr && S.clr.vfr)) h += row('C', esc(res.C.want), res.C.ok);
+  if (!(S.clr && S.clr.vfr)) h += row('R', items(res.R.items) + (res.R.ok ? '' : ` <span class="miss">(${res.R.hits}/${res.R.items.length}, need ${res.R.need})</span>`), res.R.ok);
+  h += row('A', items(res.A.items), res.A.ok);
+  h += row('F', esc(res.F.want), res.F.ok);
+  h += row('T', esc(res.T.want), res.T.ok);
+  if (S.clr && S.clr.void) h += row('V', esc(res.V.want), res.V.ok);
+  if (!typed) h += row('ID', esc(shortTail()), res.CS.ok);
+  $('score').innerHTML = h;
+  $('scoreBox').classList.remove('hidden');
+  const v = $('verdict');
+  v.className = 'verdict ' + (res.all ? 'ok' : 'no');
+  v.textContent = res.all ? (S.tries === 1 ? 'Readback correct, first try.' : `Readback correct after ${S.tries} tries.`)
+    : 'Not quite. Read back just the red items; what you already got right still counts.';
+  const missed = ['C','R','A','F','T','V'].filter(k => !res[k].ok).concat(!typed && !res.CS.ok ? ['callsign'] : []);
+  setStatus(res.all ? '✓ ' + v.textContent : '✗ Missed: ' + missed.join(', '), res.all ? 'ok' : 'no');
+}
+function atcRespond(res, c){
+  const cs = c.callSay;
+  const after = () => { if (!S.done) warmRec(); };
+  if (res.all){
+    const gs = c.gnd ? `contact Ground ${sayDigits(c.gnd)} when ready to taxi` : 'contact Ground when ready to taxi';
+    atcShow(esc(`${shortTail()}, readback correct, ${c.gnd ? 'contact Ground ' + c.gnd : 'contact Ground'} when ready to taxi.`));
+    speakSeq([`${cs}, readback correct, ${gs}.`], null, null, c.rateMul);
+    return;
+  }
+  const fix = [];
+  c.parts.forEach(pt => { if (res[pt.k] && !res[pt.k].ok) fix.push(pt.say + '.'); });
+  if (!fix.length){ speakSeq(['Aircraft reading back, say your full call sign.'], after, null, c.rateMul); return; }
+  // Corrections go through the same player as the clearance, so Pause, Back 3 s and Replay work on them too.
+  plStart([`${cs}, negative.`].concat(fix), { rate:(+$('rate').value || 1) * (c.rateMul || 1), gap:c.gap ?? 500, onDone: after });
+}
+/* Credit carries over within one clearance: once an element (or a route/altitude item) has been read back,
+   it stays read back. A follow-up readback only needs the elements ATC corrected. */
+function mergeTries(prev, cur){
+  if (!prev) return cur;
+  for (const k of ['C','F','T','V','CS']) cur[k].ok = cur[k].ok || prev[k].ok;
+  for (const k of ['R','A']){
+    cur[k].items.forEach((it, i) => { if (prev[k].items[i] && prev[k].items[i].hit) it.hit = true; });
+    if (prev[k].ok) cur[k].ok = true;
+  }
+  cur.R.hits = cur.R.items.filter(i => i.hit).length;
+  cur.R.ok = cur.R.ok || cur.R.hits >= cur.R.need;
+  cur.A.ok = cur.A.ok || cur.A.items.filter(i => !i.optional).every(i => i.hit);
+  cur.all = cur.C.ok && cur.R.ok && cur.A.ok && cur.F.ok && cur.T.ok && cur.V.ok && cur.CS.ok;
+  return cur;
+}
+function logReadback(text, typed, res){
+  const missing = ['C','R','A','F','T','V'].filter(k => !res[k].ok).concat(!typed && !res.CS.ok ? ['call sign'] : []);
+  const li = document.createElement('li');
+  li.className = res.all ? 'ok' : 'no';
+  li.innerHTML = `<span class="rb-h">Readback ${S.tries} · ${typed ? 'typed' : 'as heard by your browser'} · ${res.all ? 'all elements read back' : 'still missing: ' + missing.join(', ')}</span>“${esc(text.trim())}”`;
+  $('rbLog').appendChild(li);
+}
+function handleReadback(text, typed){
+  const c = S.clr;
+  if (!c || S.done) return;
+  if (!text.trim()){ setHeard(typed ? '' : 'Nothing heard. Try again.'); setStatus(typed ? '' : 'Nothing heard. Try again.', 'no'); return; }
+  S.tries++;
+  const res = mergeTries(S.acc, grade(text, c, typed));
+  S.acc = res;
+  if (!typed) setHeard('Heard: “' + text.trim() + '”');
+  stopRec(true);
+  if (res.all){
+    S.done = true;
+    const clean = S.tries === 1 && S.sayAgains === 0;
+    S.stats.n++; if (clean) S.stats.firstTry++;
+    if ($('style').value === 'grad' && clean && S.level < 5){ S.level++; savePrefs(); }
+  } else if ($('style').value === 'grad' && S.tries === 3 && S.level > 1){ S.level--; savePrefs(); }
+  showScore(res, typed);
+  logReadback(text, typed, res);
+  setHeard('');   // the transcript now lives in the readback log below
+  if (res.all){
+    $('tally').textContent = `This visit: ${S.stats.n} clearance${S.stats.n === 1 ? '' : 's'} read back correctly, ${S.stats.firstTry} on the first try with no say-again.`;
+    showClearanceText();
+  }
+  showGradInfo();
+  ui();
+  atcRespond(res, c);
+}
+function showClearanceText(){
+  const c = S.clr; if (!c) return;
+  $('clrText').innerHTML = `<div style="color:var(--text-muted);margin-bottom:4px">${esc(shortTail())} · ${esc(styleLabel(c))}${c.style === 'amend' ? ' · you filed: ' + esc(c.filedStr) : ''}</div>` +
+    c.parts.map(p => `<div><span class="k">${p.k}</span>${esc(p.text)}</div>`).join('') +
+    (c.routeMode === 'tec' && c.expansion ? `<div style="color:var(--text-muted);margin-top:4px">${esc(c.expansion.text)}</div>` : '');
+  $('clrText').classList.remove('hidden');
+}
+
+/* =====================================================================
+   SPEECH RECOGNITION / PUSH TO TALK
+   ===================================================================== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const REC_OK = !!SR;
+const R = { rec:null, running:false, wantWarm:false, down:false, capturing:false, buf:'', interim:'', tail:null, ready:false };
+function pttButtons(fn){ document.querySelectorAll('[data-ptt]').forEach(fn); }
+function pttPhaseLabel(){
+  const ph = S.phase;
+  if (S.talking) return 'listening to Clearance…';
+  if (ph === 'idle') return 'initial call';
+  if (ph === 'ready') return 'ready to copy';
+  if (ph === 'reading') return 'copy the clearance';
+  if (ph === 'copied' && !S.done) return REC_OK ? 'read back · say again' : 'type your readback below';
+  return 'call for next clearance';
+}
+function pttLabel(){
+  pttButtons(b => {
+    b.classList.toggle('live', R.down);
+    const main = b.querySelector('.ptt-main') || b;
+    main.textContent = R.down ? (R.ready || !REC_OK ? '● Transmitting' : '● …') : '● Push to talk';
+    const sub = b.querySelector('.ptt-sub'); if (sub) sub.textContent = R.down ? '' : pttPhaseLabel();
+  });
+  $('rx').classList.toggle('tx', R.down);
+}
+function makeRec(){
+  const r = new SR();
+  r.lang = 'en-US'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+  r.onstart = () => { R.ready = true; pttLabel(); };
+  r.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal){ if (R.capturing) R.buf += ' ' + t; }
+      else interim += t;
+    }
+    R.interim = R.capturing ? interim : '';
+    if (R.capturing){ const s = '… ' + (R.buf + ' ' + R.interim).trim(); setHeard(s); setStatus(s, ''); }
+  };
+  r.onend = () => {
+    R.running = false; R.ready = false;
+    if (R.capturing && R.down){ R.buf += ' ' + R.interim; R.interim = ''; startRec(); return; }
+    if (R.capturing){ finishCapture(); return; }
+    if (R.wantWarm) setTimeout(() => { if (R.wantWarm && !R.running) startRec(); }, 250);
+  };
+  r.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      R.wantWarm = false;
+      $('pttHint').innerHTML = '<span class="warn">Microphone blocked.</span> Allow the mic for this site, or type your readback.';
+    }
+  };
+  return r;
+}
+function startRec(){
+  if (!REC_OK || R.running) return;
+  if (!R.rec) R.rec = makeRec();
+  try { R.rec.start(); R.running = true; } catch (e) {}
+}
+function warmRec(){ if (!REC_OK || S.done || S.talking) return; R.wantWarm = true; startRec(); }
+function stopRec(hard){
+  R.wantWarm = false; R.capturing = false; R.down = false; clearTimeout(R.tail); R.tail = null;
+  pttLabel();
+  if (R.rec && R.running){ try { hard ? R.rec.abort() : R.rec.stop(); } catch (e) {} }
+}
+function pttDown(btn){
+  if ((btn && btn.disabled) || R.down || S.talking) return;
+  unlockSpeech(); ensureAudio();
+  R.down = true; R.capturing = true; R.buf = ''; R.interim = ''; clearTimeout(R.tail); R.tail = null;
+  pttLabel();
+  if (S.phase === 'copied') setHeard('…');
+  R.wantWarm = true; startRec();
+}
+function pttUp(){
+  if (!R.down) return;
+  R.down = false;
+  pttLabel();
+  R.tail = setTimeout(finishCapture, REC_OK ? 1100 : 60);
+}
+function finishCapture(){
+  if (!R.capturing) return;
+  clearTimeout(R.tail); R.tail = null;
+  const text = (R.buf + ' ' + R.interim).trim();
+  R.capturing = false; R.buf = ''; R.interim = '';
+  routeTransmission(text);
+}
+function routeTransmission(text){
+  const t = text.toLowerCase();
+  const fewNumbers = (parse(text).compact || '').length < 3;
+  if (S.phase === 'idle'){ setStatus(text ? 'You: “' + text + '”' : '', ''); onCall(); return; }
+  if (S.phase === 'ready'){
+    setStatus(text ? 'You: “' + text + '”' : '', '');
+    if (/say again|repeat/.test(t)) sayReadyPrompt(); else readClearance();
+    return;
+  }
+  if (S.phase !== 'copied') return;
+  if (fewNumbers && /say again|repeat/.test(t)){ setStatus('You: “' + text + '”', ''); onSayAgain(); return; }
+  if (fewNumbers && /route|expand|spell|tec\b|tech\b/.test(t) && S.clr && S.clr.routeMode === 'tec' && S.clr.expansion){ setStatus('You: “' + text + '”', ''); onRequestRoute(); return; }
+  handleReadback(text, false);
+}
+
+/* =====================================================================
+   COPY PAD — rows C, R (3× tall), A, F, T, V
+   ===================================================================== */
+const ROWS = [['C',1],['R',3],['A',1],['F',1],['T',1],['V',1]];   // V = void time (Approach/Center clearances)
+const pad = $('pad'); const ctx = pad.getContext('2d');
+let drawing = false, last = null, strokes = [];
+function padSize(){
+  const dpr = window.devicePixelRatio || 1, w = pad.clientWidth, h = pad.clientHeight;
+  if (!w || !h) return;
+  pad.width = Math.round(w * dpr); pad.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  padRedraw();
+}
+function padGuides(){
+  const w = pad.clientWidth, h = pad.clientHeight, units = ROWS.reduce((s,r) => s + r[1], 0), u = h / units;
+  ctx.save();
+  ctx.strokeStyle = '#2a323f'; ctx.lineWidth = 1;
+  ctx.fillStyle = '#7a5a1e'; ctx.font = '600 18px "IBM Plex Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  let y = 0;
+  ROWS.forEach(([L, n], i) => {
+    if (i){ ctx.beginPath(); ctx.moveTo(0, Math.round(y) + .5); ctx.lineTo(w, Math.round(y) + .5); ctx.stroke(); }
+    ctx.fillText(L, 17, y + u / 2);
+    if (n > 1){
+      ctx.save(); ctx.strokeStyle = '#1e2530'; ctx.setLineDash([3,5]);
+      for (let k = 1; k < n; k++){ ctx.beginPath(); ctx.moveTo(40, Math.round(y + k*u) + .5); ctx.lineTo(w, Math.round(y + k*u) + .5); ctx.stroke(); }
+      ctx.restore();
+    }
+    y += n * u;
+  });
+  ctx.beginPath(); ctx.moveTo(34.5, 0); ctx.lineTo(34.5, h); ctx.stroke();
+  ctx.restore();
+}
+function inkSeg(a, b){ ctx.strokeStyle = '#e7e4dc'; ctx.lineCap = 'round'; ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+function padRedraw(){
+  ctx.clearRect(0, 0, pad.clientWidth, pad.clientHeight);
+  padGuides();
+  strokes.forEach(s => { for (let i = 1; i < s.length; i++) inkSeg(s[i-1], s[i]); if (s.length === 1) inkSeg(s[0], { x:s[0].x + .1, y:s[0].y, w:s[0].w }); });
+}
+function padPt(e){
+  const r = pad.getBoundingClientRect();
+  const pr = e.pointerType === 'pen' && e.pressure ? e.pressure : 0.5;
+  return { x:e.clientX - r.left, y:e.clientY - r.top, w: 1.2 + pr * 2.6 };
+}
+/* iOS (Safari and in-app browsers) doesn't always honour touch-action:none, so a finger on the pad can scroll the page
+   mid-stroke. Block touch scrolling on the pad outright: one finger writes, two fingers scroll the page. */
+const padPtrs = new Set();
+let twoFingerY = null;
+pad.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length >= 2){ twoFingerY = (e.touches[0].clientY + e.touches[1].clientY) / 2; }
+}, { passive:false });
+pad.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length >= 2 && twoFingerY !== null){
+    const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    window.scrollBy(0, twoFingerY - y); twoFingerY = y;
+  }
+}, { passive:false });
+pad.addEventListener('touchend', e => { if (e.touches.length < 2) twoFingerY = null; }, { passive:false });
+pad.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  padPtrs.add(e.pointerId);
+  if (padPtrs.size > 1){   // second finger down: this is a scroll, not ink. Drop the stroke the first finger started.
+    if (drawing && strokes.length && strokes[strokes.length-1].length < 8) strokes.pop();
+    drawing = false; padRedraw(); return;
+  }
+  try { pad.setPointerCapture(e.pointerId); } catch (_) {}
+  drawing = true; last = padPt(e); strokes.push([last]); inkSeg(last, { x:last.x + .1, y:last.y, w:last.w });
+});
+pad.addEventListener('pointermove', e => {
+  if (!drawing) return; e.preventDefault();
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const ev of evs){ const p = padPt(ev); strokes[strokes.length-1].push(p); inkSeg(last, p); last = p; }
+});
+['pointerup','pointercancel','lostpointercapture'].forEach(t => pad.addEventListener(t, e => { padPtrs.delete(e.pointerId); if (!padPtrs.size) drawing = false; }));
+/* ---- PAD ANCHOR: keep the copy pad where it is on screen while things above it change size
+   (live transcript, Clearance Delivery box, Departure details). Safari has no scroll anchoring of its own.
+   Only acts while the pad is at least partly on screen; your own scrolling just moves the anchor. */
+const PA = { top:null, prog:false };
+function paRecord(){
+  const w = $('padWrap');
+  if (!w || w.classList.contains('hidden')){ PA.top = null; return; }
+  const r = w.getBoundingClientRect();
+  PA.top = (r.bottom > 0 && r.top < window.innerHeight) ? r.top : null;
+}
+function paHold(){
+  if (PA.top === null || PA.prog) return;
+  const d = $('padWrap').getBoundingClientRect().top - PA.top;
+  if (Math.abs(d) < 1) return;
+  PA.prog = true; window.scrollBy(0, d);
+  requestAnimationFrame(() => { PA.prog = false; paRecord(); });
+}
+window.addEventListener('scroll', () => { if (!PA.prog) paRecord(); }, { passive:true });
+if ('ResizeObserver' in window){
+  const ro = new ResizeObserver(paHold);
+  document.querySelectorAll('.step').forEach(el => ro.observe(el));
+  ro.observe(document.body);
+}
+window.addEventListener('load', paRecord);
+function padClear(){ strokes = []; padRedraw(); }
+function padUndo(){ strokes.pop(); padRedraw(); }
+function setCopyMode(type){
+  $('modeType').classList.toggle('on', type); $('modeDraw').classList.toggle('on', !type);
+  $('padWrap').classList.toggle('hidden', type); $('craftType').classList.toggle('hidden', !type); $('padHint').classList.toggle('hidden', type);
+  $('padClear').classList.toggle('hidden', type); $('padUndo').classList.toggle('hidden', type);
+  if (!type) requestAnimationFrame(padSize);
+}
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+// restore saved flight
+['tail','prefix','dep','dest'].forEach(id => { if (PREFS[id]) $(id).value = PREFS[id]; });
+if (PREFS.cls && [...$('cls').options].some(o => o.value === PREFS.cls)) $('cls').value = PREFS.cls;
+
+let apTimer = null, depDirty = false;
+function onAirportsChanged(){
+  showApNames(); fillRoutes();
+  if (depDirty){ depDirty = false; fillDepDetails(true); }
+  resetCall(); savePrefs();
+}
+$('dep').addEventListener('input', () => { depDirty = true; clearTimeout(apTimer); apTimer = setTimeout(onAirportsChanged, 300); });
+$('dest').addEventListener('input', () => { clearTimeout(apTimer); apTimer = setTimeout(onAirportsChanged, 300); });
+$('cls').addEventListener('change', () => { fillRoutes(); resetCall(); savePrefs(); });
+$('route').addEventListener('change', () => { S.userCustom = $('route').value === 'custom'; syncRouteBox(); resetCall(); });
+$('myRoute').addEventListener('input', () => { fillAlts(); showRouteInfo(); $('dFreq').value = pickDepFreq(); if (S.phase !== 'idle') resetCall(); });
+$('alt').addEventListener('change', resetCall);
+['dFac','dCall'].forEach(id => $(id).addEventListener('input', () => { updateRadio(); ui(); }));
+['tail','prefix'].forEach(id => $(id).addEventListener('input', () => { ui(); savePrefs(); }));
+$('style').addEventListener('change', () => { showGradInfo(); savePrefs(); if (S.phase === 'idle') ui(); });
+$('learn').addEventListener('change', savePrefs);
+$('btnCall').addEventListener('click', onCall);
+$('btnSayAgain').addEventListener('click', onSayAgain);
+$('btnRoute').addEventListener('click', onRequestRoute);
+$('btnNew').addEventListener('click', resetCall);
+$('btnShow').addEventListener('click', () => { if ($('clrText').classList.contains('hidden')) showClearanceText(); else $('clrText').classList.add('hidden'); });
+$('btnCheckTyped').addEventListener('click', () => {
+  const txt = $('typedRb').value.trim() || ['tC','tR','tA','tF','tT','tV'].map(id => $(id).value).join(' ');
+  handleReadback(txt, true);
+});
+$('btnPause').addEventListener('click', plPause);
+/* Back: each tap adds 3 s; speech stops on the first tap and resumes ~0.45 s after the last one. */
+let backPend = 0, backTimer = null;
+$('btnBack').addEventListener('click', () => {
+  if (!PL.active) return;
+  if (!backPend && !PL.paused){ PL.wi = plPos(); PL.paused = true; PL.tok++; speechSynthesis.cancel(); radioOff(); }
+  backPend += 3;
+  $('btnBack').textContent = `⟲ Back ${backPend} s`;
+  clearTimeout(backTimer);
+  backTimer = setTimeout(() => { const s = backPend; backPend = 0; $('btnBack').textContent = '⟲ Back 3 s'; plBack(s); }, 450);
+});
+$('btnReplay').addEventListener('click', onReplay);
+$('btnNext').addEventListener('click', () => { resetCall(); $('stepCall').scrollIntoView({ behavior:'smooth', block:'start' }); onCall(); });
+$('modeDraw').addEventListener('click', () => setCopyMode(false));
+$('modeType').addEventListener('click', () => setCopyMode(true));
+$('padUndo').addEventListener('click', padUndo);
+$('padClear').addEventListener('click', padClear);
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')){ e.preventDefault(); padUndo(); }
+});
+document.addEventListener('pointerdown', unlockSpeech, { once:true, capture:true });
+
+// voice & radio controls
+const fmtSl = { rate:v => (+v).toFixed(2) + '×', pitch:v => (+v).toFixed(2), vol:v => Math.round(v*100) + '%', noise:v => Math.round(v*100) + '%' };
+['rate','pitch','vol','noise'].forEach(id => {
+  const el = $(id), out = $(id + 'Out');
+  if (PREFS[id] !== undefined) el.value = PREFS[id];
+  out.textContent = fmtSl[id](el.value);
+  el.addEventListener('input', () => { out.textContent = fmtSl[id](el.value); if (id === 'noise' && S.talking && A.bedGain) A.bedGain.gain.setTargetAtTime(el.value * 0.6, A.ctx.currentTime, 0.02); });
+  el.addEventListener('change', savePrefs);
+});
+document.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => { $('rate').value = b.dataset.rate; $('rateOut').textContent = fmtSl.rate(b.dataset.rate); savePrefs(); }));
+if (PREFS.squelch !== undefined) $('squelch').checked = !!PREFS.squelch;
+if (PREFS.learn !== undefined) $('learn').checked = !!PREFS.learn;
+if (PREFS.style && [...$('style').options].some(o => o.value === PREFS.style)) $('style').value = PREFS.style;
+$('squelch').addEventListener('change', savePrefs);
+$('voice').addEventListener('change', savePrefs);
+$('btnSample').addEventListener('click', () => {
+  if (S.talking) return;
+  unlockSpeech(); ensureAudio();
+  if ('speechSynthesis' in window && !VOICES.length) loadVoices();
+  speakSeq([`${sayTail($('tail').value, $('prefix').value)}, ${facName()}, advise ready to copy.`]);
+});
+
+pttButtons(b => {
+  b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} pttDown(b); });
+  b.addEventListener('pointerup', pttUp);
+  b.addEventListener('pointercancel', pttUp);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || e.repeat) return;
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (/INPUT|TEXTAREA|SELECT|BUTTON/.test(tag) && !document.activeElement.hasAttribute('data-ptt')) return;
+  const b = document.querySelector('[data-ptt]');
+  if (b && !b.disabled){ e.preventDefault(); pttDown(b); }
+});
+document.addEventListener('keyup', e => { if (e.code === 'Space' && R.down){ e.preventDefault(); pttUp(); } });
+window.addEventListener('resize', () => { if (!$('padWrap').classList.contains('hidden')) padSize(); });
+
+$('pttHint').textContent = REC_OK
+  ? 'Hold Push to talk (bottom of the screen, or Space) while you speak, then release. Your readbacks stay listed here.'
+  : 'This browser has no speech recognition: Push to talk still steps through the calls, but type your readback below (or use Chrome or Safari for voice).';
+if ('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+else $('callSub').innerHTML = '<span class="warn">No speech output in this browser</span>';
+if (!window.CD_AIRPORTS || !window.CD_ROUTES) $('routeInfo').innerHTML = '<span class="warn">Data files did not load (data/airports.js, data/prefroutes.js). Keep the data folder next to index.html.</span>';
+
+/* ---- ForeFlight via Claude ----
+   The button opens Claude with a request; claude.md (in this deploy) tells Claude to run ForeFlight's route
+   search and reply with a link back here:  ?dep=KSBA&dest=KOAK&cls=Q&ac=N211WP%20DA40&r=ROUTE;T;N;DATE;LO;HI;ENG&r=…
+   T = C (ATC-cleared), T (TEC/preferred), F (ForeFlight-generated); LO/HI in feet; ENG letters P/T/J. */
+const APP_HOME = 'https://clearance-delivery.netlify.app/';
+const CLAUDE_MD_VER = '0.7';   // bump whenever claude.md changes, so Claude doesn't read a cached copy
+let claudeWin = null;   // handle to the Claude popup, so this window can close it when routes come back
+function popupFeatures(width, side){
+  const w = Math.min(width, screen.availWidth - 40);
+  const left = side === 'right' ? Math.max(0, screen.availWidth - w - 40) : 40;
+  return 'popup,width=' + w + ',height=' + Math.min(900, screen.availHeight - 80) + ',left=' + left + ',top=40';
+}
+$('btnFF').addEventListener('click', () => {
+  const d = depK(), t = destK(); if (!d || !t) return;
+  const clsTxt = $('cls').options[$('cls').selectedIndex].text;
+  const q = `Use my ForeFlight connector to get IFR routes for the Clearance Delivery Trainer, following the instructions at ${APP_HOME}claude.md?v=${CLAUDE_MD_VER}. `
+    + `Departure ${d}, destination ${t}, aircraft class ${$('cls').value} (${clsTxt}), tail ${$('tail').value.trim().toUpperCase() || 'my primary aircraft'}, filed altitude ${$('alt').value} ft. Reply with a one- or two-line summary, then the fill-in link last as a Markdown link labeled "Open these routes in Clearance Delivery Trainer" (no bare URL).`;
+  const url = 'https://claude.ai/new?q=' + encodeURIComponent(q);
+  const wide = window.matchMedia('(min-width: 900px)').matches;
+  let w = wide ? window.open(url, 'cd-claude', popupFeatures(560, 'right')) : null;
+  if (!w) w = window.open(url, '_blank');
+  claudeWin = w || null;
+});
+// FlightAware opens in its own popup window on wide screens (same behaviour as the Claude button); phones get a new tab.
+$('faLink').addEventListener('click', e => {
+  if (!window.matchMedia('(min-width: 900px)').matches) return;   // let the link open a tab as usual
+  const href = $('faLink').href; if (!href || href.endsWith('#')) return;
+  const w = window.open(href, 'cd-flightaware', popupFeatures(1000, 'left'));
+  if (w){ e.preventDefault(); try { w.focus(); } catch (err) {} }
+});
+
+// Read a fill-in link's query string (?dep=…&dest=…&cls=…&ac=…&r=…) into the form and the ForeFlight route cache.
+function importFromSearch(search){
+  let qs; try { qs = new URLSearchParams(search); } catch (e) { return false; }
+  const rs = qs.getAll('r');
+  if (!qs.get('dep') && !rs.length) return false;
+  const dep = findAirport(qs.get('dep')), dest = findAirport(qs.get('dest'));
+  if (qs.get('dep')) $('dep').value = dep || qs.get('dep');
+  if (qs.get('dest')) $('dest').value = dest || qs.get('dest');
+  if (/^[QPMJ]$/.test(qs.get('cls') || '')) $('cls').value = qs.get('cls');
+  if (dep && dest && rs.length){
+    const routes = rs.map(s => {
+      const f = s.split(';');
+      const r = (f[0] || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      return { r, t:(f[1] || 'C').toUpperCase(), n:f[2] || '', d:f[3] || '', lo:+f[4] || 0, hi:+f[5] || 0, eng:(f[6] || '').toUpperCase().replace(/[^PTJ]/g, '') };
+    }).filter(x => x.r);
+    const now = new Date();
+    const at = now.getDate().toString().padStart(2,'0') + '-' + now.toLocaleString('en-US', { month:'short' }) + '-' + now.getFullYear();
+    FFCACHE[dep + '-' + dest] = { routes, at, ac:qs.get('ac') || '' };
+    try { localStorage.setItem(FF_KEY, JSON.stringify(FFCACHE)); } catch (e) {}
+    S.userCustom = false;
+  }
+  return true;
+}
+const linkSearch = location.search;
+window.__cdImported = importFromSearch(linkSearch);
+if (window.__cdImported){ try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+
+/* ---- Hand a fill-in link to the trainer window that's already open ----
+   Claude's link opens a new tab. That tab asks any open trainer window (same browser) to take the routes.
+   The open window loads them, closes the Claude popup if it still holds a handle to it, and answers;
+   the new tab then closes itself. If nobody answers within 600 ms, the new tab just carries on as the trainer.
+   Closing the popup can fail if claude.ai cuts the opener's handle (Cross-Origin-Opener-Policy): untested. */
+const CD_CH = ('BroadcastChannel' in window) ? new BroadcastChannel('cd-trainer') : null;
+if (CD_CH){
+  CD_CH.onmessage = ev => {
+    const m = ev.data || {};
+    if (m.type !== 'routes' || window.__cdHandoff) return;
+    if (!importFromSearch(m.search)) return;
+    showApNames(); fillRoutes(); fillDepDetails(true); resetCall(); savePrefs();
+    try { if (claudeWin && !claudeWin.closed) claudeWin.close(); } catch (e) {}
+    claudeWin = null;
+    try { window.focus(); } catch (e) {}
+    CD_CH.postMessage({ type:'taken', id:m.id });
+  };
+  if (window.__cdImported){
+    window.__cdHandoff = true;   // this tab is the newcomer: don't take routes from other tabs while asking
+    const id = Math.random().toString(36).slice(2);
+    let taken = false;
+    const onAck = ev => {
+      const m = ev.data || {};
+      if (m.type !== 'taken' || m.id !== id || taken) return;
+      taken = true;
+      window.close();   // allowed for a tab opened by a link with no history behind it; if refused, say so instead
+      setTimeout(() => {
+        document.body.insertAdjacentHTML('afterbegin', '<div class="handoff-note">Routes loaded in your open Clearance Delivery Trainer window. You can close this tab.</div>');
+      }, 300);
+    };
+    CD_CH.addEventListener('message', onAck);
+    CD_CH.postMessage({ type:'routes', search:linkSearch, id });
+    setTimeout(() => { if (!taken) window.__cdHandoff = false; }, 600);
+  }
+}
+
+showApNames(); fillRoutes(); fillDepDetails(true); padSize(); resetCall(); showGradInfo();
+nasrInit();
+if (window.__cdImported) savePrefs();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(padRedraw);
+
+window.__CD = { parse, grade, mergeTries, buildClearance, clearanceParts, sayRoute, sayAlt, sayTec, sayFix, routeOptions, findAirport, spokenName, S, routeTransmission, pickDepFreq };   // test hook
+
+// ---- share button (App-Conventions §6a) ----
+(() => {
+  const APP_URL   = 'https://clearance-delivery.netlify.app/';   // canonical live URL from §1
+  const APP_TITLE = 'Clearance Delivery Trainer';
+  const APP_TEXT  = 'Practice copying and reading back IFR clearances in CRAFT, with real routes.';
+  const btn = document.getElementById('shareBtn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const label = btn.querySelector('span') || btn;
+    const original = label.textContent;
+    if (navigator.share){
+      try { await navigator.share({ title: APP_TITLE, text: APP_TEXT, url: APP_URL }); return; }
+      catch (err) { if (err && err.name === 'AbortError') return; /* else fall through */ }
+    }
+    try {
+      await navigator.clipboard.writeText(APP_URL);
+      label.textContent = 'Link copied to clipboard!';
+      setTimeout(() => { label.textContent = original; }, 2200);
+    } catch (err) {
+      window.location.href = 'mailto:?subject=' + encodeURIComponent(APP_TITLE)
+        + '&body=' + encodeURIComponent(APP_TEXT + ' ' + APP_URL);
+    }
+  });
+})();
+
+// ---- open counter (App-Conventions §6b; Tally, fails silently) ----
+fetch('https://tally.yuki.sh/hits/wamware/clearance-delivery.json')
+  .then(r => r.json())
+  .then(d => {
+    const el = document.getElementById('hitCounter');
+    const n = d && d.visit;
+    if (el && typeof n === 'number') el.textContent = 'Opened ' + n.toLocaleString() + (n === 1 ? ' time' : ' times');
+  })
+  .catch(() => { /* counter is a nice-to-have, never block the app */ });
+</script>
+</body>
+</html>
