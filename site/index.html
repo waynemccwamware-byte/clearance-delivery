@@ -260,7 +260,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.29</span>
+    <span class="ver mono">v0.30</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -342,6 +342,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
         <label class="chk" style="margin-top:4px"><input type="checkbox" id="squelch" checked> Squelch click at start and end of each transmission</label>
         <div class="call-row" style="margin-top:8px"><button class="btn sm" type="button" id="btnSample">▶ Play sample</button></div>
         <p class="hint">Static plays under the voice; the browser's voice itself can't be filtered to sound like a radio. Saved on this device.</p>
+        <p class="hint mono" id="spdLine" style="font-size:11px">Speech: nothing spoken yet</p>
       </details>
       <div id="rbxHost"></div>
     </div>
@@ -1186,13 +1187,35 @@ function tapToStart(){
   if (!IS_IOS || !('speechSynthesis' in window) || speechUnlocked || document.querySelector('.tap-start')) return;
   const ov = document.createElement('div');
   ov.className = 'tap-start'; ov.setAttribute('role', 'button'); ov.setAttribute('aria-label', 'Tap to start');
-  ov.innerHTML = '<div class="ts-box"><div class="ts-t">Tap to start</div><div class="ts-s">iPhone needs one tap before Clearance Delivery can talk to you.</div></div>';
-  const go = e => { e.preventDefault(); unlockSpeech(); ensureAudio(); ov.remove(); };
-  ov.addEventListener('click', go);
+  ov.innerHTML = '<div class="ts-box"><div class="ts-t">Tap anywhere to start</div><div class="ts-s">iPhone needs one tap before Clearance Delivery can talk to you. You will hear &ldquo;Clearance Delivery, ready.&rdquo;</div></div>';
+  // v0.30: the tap does what Play sample does (the one thing proven to unlock speech on Wayne's iPhone):
+  // an audible line through speakSeq, with the voice list loaded first. The silent unlock alone was not enough.
+  const go = e => {
+    e.preventDefault(); ov.remove();
+    unlockSpeech(); ensureAudio();
+    if (!VOICES.length) loadVoices();
+    speakSeq(['Clearance Delivery, ready.']);
+  };
+  // v0.30: a tap on the dimmed area outside the box didn't register on iPhone (only inside the box did), so the
+  // whole screen listens for touchend as well as click; whichever comes first runs it once.
+  let done = false; const once = e => { if (done) return; done = true; go(e); };
+  ov.addEventListener('touchend', once);
+  ov.addEventListener('click', once);
   document.body.appendChild(ov);
+}
+/* v0.30 speech diagnostics, shown in Voice & radio (to see what iOS reports when ATC is silent) */
+const SPD = { last:'none' };
+function spdNote(what, u, e){
+  SPD.last = what + ' "' + String(u.text).slice(0, 24) + '"' + (e && e.error ? ' (' + e.error + ')' : '');
+  const el = $('spdLine'); if (!el) return;
+  el.textContent = 'Speech: ' + (speechUnlocked ? 'unlocked' : 'not unlocked yet') + ' · voices ' + VOICES.length
+    + ' · voice ' + (u.voice ? u.voice.name : 'default') + ' · last: ' + SPD.last;
 }
 function makeUtt(text, rate){
   const u = new SpeechSynthesisUtterance(text);
+  u.addEventListener('start', () => spdNote('started', u));
+  u.addEventListener('end', () => spdNote('ended', u));
+  u.addEventListener('error', e => spdNote('error', u, e));
   const v = VOICES[+$('voice').value];
   u.rate = Math.min(2, rate); u.pitch = +$('pitch').value || 1; u.volume = +$('vol').value; u.lang = 'en-US'; if (v) u.voice = v;
   return u;
