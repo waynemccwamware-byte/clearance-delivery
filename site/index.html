@@ -253,7 +253,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.22</span>
+    <span class="ver mono">v0.23</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -1558,7 +1558,11 @@ function tokenize(text){
     .replace(/-/g,' ')
     .replace(/[^a-z0-9.\s]/g,' ')
     .replace(/\.(?!\d)/g,' ')
-    .split(/\s+/).filter(Boolean);
+    .split(/\s+/).filter(Boolean)
+    // v0.23: "eight thousand, five minutes" comes through as "8005 minutes" (Safari log, 20-Oct-2026): a 4–5 digit
+    // number just before "minute(s)" with a 1–99 remainder is thousands + minutes
+    .flatMap((t, i, a) => /^\d{4,5}$/.test(t) && /^min/.test(a[i+1] || '') && +t % 1000 > 0 && +t % 1000 < 100
+      ? [String(+t - (+t % 1000)), String(+t % 1000)] : [t]);
 }
 function parse(text, typed){
   const raw = tokenize(text);
