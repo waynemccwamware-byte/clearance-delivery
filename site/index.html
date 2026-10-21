@@ -269,7 +269,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.32</span>
+    <span class="ver mono">v0.33</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -1139,7 +1139,18 @@ function expansionPart(c){
 /* =====================================================================
    RADIO AUDIO: static bed + squelch clicks (Web Audio, no files)
    ===================================================================== */
-const A = { ctx:null, bedGain:null };
+const A = { ctx:null, bedGain:null, out:null, hushed:false };
+/* v0.33 (from ATC Chair-Fly v3.21): every app sound goes through one master gain, so the static bed or a squelch
+   click still playing when Push to talk is keyed is cut at once instead of playing on into the mic. */
+function aOut(){
+  if (!A.out){ A.out = A.ctx.createGain(); A.out.gain.value = A.hushed ? 0 : 1; A.out.connect(A.ctx.destination); }
+  return A.out;
+}
+function hushAudio(on){
+  A.hushed = !!on;
+  if (!A.out) return;
+  try { const t = A.ctx.currentTime; A.out.gain.cancelScheduledValues(t); A.out.gain.setTargetAtTime(on ? 0 : 1, t, on ? 0.008 : 0.03); } catch (e) {}
+}
 function ensureAudio(){
   try {
     if (!A.ctx){
@@ -1152,7 +1163,7 @@ function ensureAudio(){
       const src = A.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
       const bp = A.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1600; bp.Q.value = 0.6;
       A.bedGain = A.ctx.createGain(); A.bedGain.gain.value = 0;
-      src.connect(bp).connect(A.bedGain).connect(A.ctx.destination); src.start();
+      src.connect(bp).connect(A.bedGain).connect(aOut()); src.start();
     }
     if (A.ctx.state === 'suspended') A.ctx.resume();
     return A.ctx;
@@ -1163,7 +1174,7 @@ function squelchClick(level){
   const t = A.ctx.currentTime, src = A.ctx.createBufferSource(); src.buffer = A.noiseBuf;
   const g = A.ctx.createGain(); const hp = A.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900;
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5 * level, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-  src.connect(hp).connect(g).connect(A.ctx.destination); src.start(t, Math.random()); src.stop(t + 0.16);
+  src.connect(hp).connect(g).connect(aOut()); src.start(t, Math.random()); src.stop(t + 0.16);
 }
 function radioOn(){
   setRx(true);
@@ -1978,7 +1989,11 @@ function handleReadback(text, typed, segs){
     const rescued = lMiss.filter(k => !iMiss.includes(k));
     logId = RBX.log({ app:'clearance-delivery', try:S.tries, expected: c.parts.map(pt => pt.k + ': ' + pt.text).join(' | ') + ' | ID: ' + shortTail(),
       heard:text.trim(), alts:segs || [], legacy:{ ok:legacy.all, missing:lMiss }, improved:{ ok:imp.res.all, missing:iMiss, rescued },
-      changes:imp.changes, readings:imp.cands.length });
+      changes:imp.changes, readings:imp.cands.length,
+      ptt:R.via || undefined, mic:R.warm ? 'warm' : 'cold', coldMs:R.warm ? undefined : R.coldMs, sessAgeMs:R.sessAge === null ? undefined : R.sessAge,
+      events:R.ev.filter(x => x.t >= R.t0 - 10000).map(x => x.e + '@' + Math.round(x.t - R.t0)).join(' '),
+      relMs:R.rel ? Math.round(R.rel - R.t0) : undefined, scoredMs:Math.round(performance.now() - R.t0), resMs:R.resMs.join(' '),
+      micDevice:micLabel || 'unknown (label not readable)' });
     if (RBX.on()){
       cur = imp.res;
       if (rescued.length) note = 'New matcher credited ' + rescued.map(k => k === 'CS' ? 'call sign' : k).join(', ')
@@ -1996,6 +2011,8 @@ function handleReadback(text, typed, segs){
     if ($('style').value === 'grad' && clean && S.level < 5){ S.level++; savePrefs(); }
   } else if ($('style').value === 'grad' && S.tries === 3 && S.level > 1){ S.level--; savePrefs(); }
   showScore(res, typed);
+  if (!typed && !res.all && /iphone|ipad/i.test(micLabel))
+    note = (note ? note + ' · ' : '') + 'Mic in use: ' + micLabel + ' (Continuity). For best results, set System Settings → Sound → Input to the Mac\u2019s own mic.';
   logReadback(text, typed, res, note, logId);
   setHeard('');   // the transcript now lives in the readback log below
   if (res.all){
@@ -2019,7 +2036,25 @@ function showClearanceText(){
    ===================================================================== */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const REC_OK = !!SR;
-const R = { rec:null, running:false, wantWarm:false, down:false, capturing:false, buf:'', interim:'', tail:null, ready:false, segs:[], iSegs:[] };
+const R = { rec:null, running:false, wantWarm:false, down:false, capturing:false, buf:'', interim:'', tail:null, ready:false, segs:[], iSegs:[],
+  // v0.33 diagnostics for the readback log (as ATC Chair-Fly v3.19–v3.22)
+  via:'', warm:false, t0:0, rel:0, coldMs:null, lastRes:0, resMs:[], ev:[], sessAt:0, sessAge:null };
+function rEv(e){ R.ev.push({ e, t:performance.now() }); if (R.ev.length > 40) R.ev = R.ev.slice(-40); }
+/* v0.33: which microphone Chrome is listening on (its recognizer uses the system default input). 21-Oct-2026: an
+   iPhone connected as the Mac's mic through Continuity gave slow, front-clipped readbacks. */
+let micLabel = '';
+function readMic(){
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    navigator.mediaDevices.enumerateDevices().then(list => {
+      const ins = list.filter(d => d.kind === 'audioinput');
+      const d = ins.find(x => x.deviceId === 'default') || ins[0];
+      micLabel = d && d.label ? d.label.replace(/^Default\s*-\s*/i, '') : '';
+    }).catch(() => {});
+  } catch (e) {}
+}
+try { navigator.mediaDevices && navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener('devicechange', readMic); } catch (e) {}
+readMic();
 function pttButtons(fn){ document.querySelectorAll('[data-ptt]').forEach(fn); }
 function pttPhaseLabel(){
   const ph = S.phase;
@@ -2042,8 +2077,9 @@ function pttLabel(){
 function makeRec(){
   const r = new SR();
   r.lang = 'en-US'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;   // v0.21: alternates feed RBX
-  r.onstart = () => { R.ready = true; pttLabel(); };
+  r.onstart = () => { rEv('start'); R.sessAt = performance.now(); if (R.capturing && !R.warm && R.coldMs === null) R.coldMs = Math.round(R.sessAt - R.t0); R.ready = true; pttLabel(); };
   r.onresult = e => {
+    if (R.capturing){ R.lastRes = performance.now(); if (R.resMs.length < 30) R.resMs.push(Math.round(R.lastRes - R.t0)); }
     let interim = ''; const iSegs = [];
     for (let i = e.resultIndex; i < e.results.length; i++){
       const t = e.results[i][0].transcript;
@@ -2056,12 +2092,14 @@ function makeRec(){
     if (R.capturing){ const s = '… ' + (R.buf + ' ' + R.interim).trim(); setHeard(s); setStatus(s, ''); }
   };
   r.onend = () => {
+    rEv('end');
     R.running = false; R.ready = false;
     if (R.capturing && R.down){ R.buf += ' ' + R.interim; R.interim = ''; R.segs.push(...R.iSegs); R.iSegs = []; startRec(); return; }
     if (R.capturing){ finishCapture(); return; }
     if (R.wantWarm) setTimeout(() => { if (R.wantWarm && !R.running) startRec(); }, 250);
   };
   r.onerror = e => {
+    rEv('err:' + e.error);
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
       R.wantWarm = false;
       $('pttHint').innerHTML = '<span class="warn">Microphone blocked.</span> Allow the mic for this site, or type your readback.';
@@ -2076,13 +2114,16 @@ function startRec(){
 }
 function warmRec(){ if (!REC_OK || S.done || S.talking) return; R.wantWarm = true; startRec(); }
 function stopRec(hard){
+  hushAudio(false);
   R.wantWarm = false; R.capturing = false; R.down = false; clearTimeout(R.tail); R.tail = null;
   pttLabel();
   if (R.rec && R.running){ try { hard ? R.rec.abort() : R.rec.stop(); } catch (e) {} }
 }
-function pttDown(btn){
+function pttDown(btn, via){
   if ((btn && btn.disabled) || R.down || S.talking) return;
-  unlockSpeech(); ensureAudio();
+  unlockSpeech(); ensureAudio(); hushAudio(true); readMic();
+  R.via = via || 'mouse'; R.warm = R.running && R.ready; R.t0 = performance.now(); R.rel = 0; R.coldMs = null; R.resMs = []; R.lastRes = 0;
+  R.sessAge = R.warm ? Math.round(R.t0 - R.sessAt) : null;
   R.down = true; R.capturing = true; R.buf = ''; R.interim = ''; R.segs = []; R.iSegs = []; clearTimeout(R.tail); R.tail = null;
   pttLabel();
   if (S.phase === 'copied') setHeard('…');
@@ -2091,9 +2132,18 @@ function pttDown(btn){
 function pttUp(){
   unlockSpeech();   // the release is what iOS counts as the tap
   if (!R.down) return;
-  R.down = false;
+  R.down = false; R.rel = performance.now();
   pttLabel();
-  R.tail = setTimeout(finishCapture, REC_OK ? 1100 : 60);
+  if (!REC_OK){ R.tail = setTimeout(finishCapture, 60); return; }
+  // v0.33 (as ATC Chair-Fly v3.20): a final phrase isn't the end of the readback; Chrome can close one phrase before
+  // the next has produced any result. Score after 1 s with no new result (at least 0.5 s after release, at most 2.5 s).
+  const poll = () => {
+    if (!R.capturing || R.down) return;
+    const now = performance.now(), el = now - R.rel;
+    if (el >= 2500 || (el >= 500 && !R.interim && now - Math.max(R.lastRes, R.rel) >= 1000)) return finishCapture();
+    R.tail = setTimeout(poll, 100);
+  };
+  R.tail = setTimeout(poll, 100);
 }
 function finishCapture(){
   if (!R.capturing) return;
@@ -2101,6 +2151,7 @@ function finishCapture(){
   const text = (R.buf + ' ' + R.interim).trim();
   const segs = R.segs.concat(R.iSegs);
   R.capturing = false; R.buf = ''; R.interim = ''; R.segs = []; R.iSegs = [];
+  hushAudio(false);
   routeTransmission(text, segs);
 }
 function routeTransmission(text, segs){
@@ -2310,17 +2361,39 @@ $('btnSample').addEventListener('click', () => {
 });
 
 pttButtons(b => {
-  b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} pttDown(b); });
+  b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} pttDown(b, e.pointerType === 'touch' ? 'touch' : 'mouse'); });
   b.addEventListener('pointerup', pttUp);
   b.addEventListener('pointercancel', pttUp);
   b.addEventListener('contextmenu', e => e.preventDefault());
 });
+/* v0.33 (as ATC Chair-Fly v3.17): Space belongs to Push to talk unless you're typing in a field or tabbed onto a control
+   with the keyboard. A checkbox, select or button last clicked with the mouse keeps focus in Chrome on macOS, which used
+   to swallow Space-hold PTT (and toggle the checkbox). Focus origin is tracked here, since Chrome sets :focus-visible on
+   the focused element at any key press and can't tell the two apart. */
+let lastPointerAt = 0, mouseFocused = null;
+document.addEventListener('pointerdown', () => { lastPointerAt = performance.now(); }, true);
+document.addEventListener('focusin', e => { mouseFocused = (performance.now() - lastPointerAt < 600) ? e.target : null; }, true);
+function spaceTyping(el){
+  if (!el || !el.tagName) return false;
+  if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
+  return el.tagName === 'INPUT' && !/^(checkbox|radio|range|button|submit|reset|color|file)$/i.test(el.type);
+}
+function spaceForPtt(el){
+  if (spaceTyping(el)) return false;
+  if (!el || el === document.body || (el.hasAttribute && el.hasAttribute('data-ptt'))) return true;
+  if (/^(BUTTON|INPUT|SELECT|SUMMARY|A)$/.test(el.tagName)){
+    if (el !== mouseFocused) return false;   // tabbed onto with the keyboard: let Space work it
+    try { el.blur(); } catch (x) {}          // mouse-left focus: take Space back (also stops the keyup "click")
+  }
+  return true;
+}
 document.addEventListener('keydown', e => {
-  if (e.code !== 'Space' || e.repeat) return;
-  const tag = (document.activeElement && document.activeElement.tagName) || '';
-  if (/INPUT|TEXTAREA|SELECT|BUTTON/.test(tag) && !document.activeElement.hasAttribute('data-ptt')) return;
+  if (e.code !== 'Space') return;
+  if (!spaceForPtt(document.activeElement)) return;
+  e.preventDefault();
+  if (e.repeat) return;
   const b = document.querySelector('[data-ptt]');
-  if (b && !b.disabled){ e.preventDefault(); pttDown(b); }
+  if (b && !b.disabled) pttDown(b, 'space');
 });
 document.addEventListener('keyup', e => { if (e.code === 'Space' && R.down){ e.preventDefault(); pttUp(); } });
 window.addEventListener('resize', () => { if (!$('padWrap').classList.contains('hidden')) padSize(); });
