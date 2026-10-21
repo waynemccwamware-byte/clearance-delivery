@@ -9,7 +9,7 @@ Your job: get the routes from the pilot's **ForeFlight** connector and reply wit
 - If it isn't connected, say so in one line and point the pilot to Claude's Connectors settings to add **ForeFlight Mobile**. Stop there.
 
 ## 2. Get the routes
-- The request gives: departure, destination, aircraft class, tail number, filed altitude.
+- The request gives: departure, destination, aircraft class, tail number, filed altitude, and a sync code.
 - Call `suggest_flight_routes` with `flight: { from: <departure>, to: <destination> }`.
   - If a tail number is given and it is one of the pilot's aircraft, pass it as `aircraft_tail_number`; otherwise omit it (primary aircraft).
 - From the result, keep in this order:
@@ -36,10 +36,11 @@ URL-encode each `r` value (spaces become `%20`, semicolons may stay as `;`).
 Base: `https://clearance-delivery.netlify.app/`
 
 ```
-https://clearance-delivery.netlify.app/?dep=KSBA&dest=KOAK&cls=Q&ac=N211WP%20DA40&r=GAUCH3%20SPLNT%20SCTRR%20SNS%20SUNNE;C;11;2026-10-16;24000;49000;J&r=...
+https://clearance-delivery.netlify.app/?dep=KSBA&dest=KOAK&cls=Q&ac=N211WP%20DA40&k=ABCD2345EFGH&r=GAUCH3%20SPLNT%20SCTRR%20SNS%20SUNNE;C;11;2026-10-16;24000;49000;J&r=...
 ```
 - `dep`, `dest`: ICAO idents from the request. `cls`: the class letter from the request (Q, P, M or J).
 - `ac`: tail and type, e.g. `N211WP DA40` (URL-encoded).
+- `k`: the sync code from the request, copied exactly (12 letters and digits). It lets the app find these routes again on the pilot's other browsers. Leave it out only if the request has none.
 - Reply in this order and nothing else:
   1. **One or two lines**: how many routes, and whether any were ATC-cleared for the pilot's aircraft class
      (Q or P = piston, M = turboprop, J = jet). Say plainly if every cleared route was for other aircraft types.
