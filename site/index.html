@@ -253,7 +253,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.25</span>
+    <span class="ver mono">v0.26</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -2289,10 +2289,22 @@ function syncSel(){   // from savePrefs: upload the route pick when it changed
   clearTimeout(syncSelTimer); syncSelTimer = setTimeout(() => syncPush({ sel: PREFS.rsel }), 800);
 }
 let syncBusy = false;
+async function syncGet(pairs){
+  try {
+    const r = await fetch(SYNC_FN + '?k=' + syncCode() + '&pairs=' + encodeURIComponent(pairs.filter(Boolean).join(',')), { cache:'no-store' });
+    return r.ok ? await r.json() : null;
+  } catch (e) { return null; }
+}
 async function syncPull(){
   if (syncBusy) return; syncBusy = true;
-  let rec = null;
-  try { const r = await fetch(SYNC_FN + '?k=' + syncCode(), { cache:'no-store' }); if (r.ok) rec = await r.json(); } catch (e) {}
+  const here = depK() && destK() ? depK() + '-' + destK() : '';
+  let rec = await syncGet([here]);
+  const s = rec && rec.sel, local = PREFS.rsel;
+  const newerSel = !!(s && s.pair && (!local || (local.ts || 0) < (s.ts || 0)));
+  if (rec && newerSel && s.pair !== here){   // the latest pick was for another pair: fetch that pair's routes too
+    const more = await syncGet([s.pair]);
+    if (more) Object.assign(rec.pairs = rec.pairs || {}, more.pairs || {});
+  }
   syncBusy = false;
   if (!rec) return;
   let changed = false;
@@ -2302,13 +2314,23 @@ async function syncPull(){
   }
   if (changed){ try { localStorage.setItem(FF_KEY, JSON.stringify(FFCACHE)); } catch (e) {} }
   if (S.phase !== 'idle') return;   // never change the flight under a clearance in progress
-  const s = rec.sel, local = PREFS.rsel;
-  if (s && s.pair && (!local || (local.ts || 0) < (s.ts || 0))){
+  if (newerSel){
     const [d, t] = s.pair.split('-');
-    if (depK() !== d || destK() !== t){ $('dep').value = d; $('dest').value = t; showApNames(); fillDepDetails(true); }
-    PREFS.rsel = s; S.userCustom = !!s.custom;
-    fillRoutes(); restoreRouteSel(); resetCall(); savePrefs();
-  } else if (changed){ fillRoutes(); restoreRouteSel(); resetCall(); }
+    const keep = { dep:$('dep').value, dest:$('dest').value, rsel:PREFS.rsel, custom:S.userCustom };
+    if (depK() !== d || destK() !== t){ $('dep').value = d; $('dest').value = t; }
+    fillRoutes();
+    const ok = s.custom || (S.opts || []).some(o => o.r === s.r && (o.id || '') === (s.id || ''));
+    if (ok){
+      showApNames(); fillDepDetails(true);
+      PREFS.rsel = s; S.userCustom = !!s.custom; fillRoutes(); restoreRouteSel(); resetCall(); savePrefs();
+      return;
+    }
+    // that pick's route isn't available here: leave this device's flight exactly as it was
+    $('dep').value = keep.dep; $('dest').value = keep.dest; S.userCustom = keep.custom;
+    fillRoutes(); restoreRouteSel(); resetCall();
+    return;
+  }
+  if (changed){ fillRoutes(); restoreRouteSel(); resetCall(); }
 }
 
 // Read a fill-in link's query string (?dep=…&dest=…&cls=…&ac=…&r=…&k=…) into the form and the ForeFlight route cache.

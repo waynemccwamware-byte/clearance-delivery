@@ -1,11 +1,17 @@
-// netlify/functions/ffsync.js  (Clearance Delivery Trainer v0.25)
+// netlify/functions/ffsync.js  (Clearance Delivery Trainer v0.26)
 //
 // Keeps the ForeFlight routes a pilot brought back through Claude, and their last route pick, under a sync code,
 // so every browser context on a device sees them. Needed on iPhone: Claude's fill-in link opens in the Claude
 // app's own browser, whose storage is separate from the home-screen Control Panel's (found 20-Oct-2026).
 //
-//   GET  ?k=CODE                       -> { pairs:{ "KSBA-KSQL": {routes, at, ac, ts} }, sel:{pair, custom, r, id, my, alt, ts} | null }
-//   POST { k, pair?, entry?, sel? }    -> merges (per pair and for sel, the newer ts wins) and returns the stored record
+//   GET  ?k=CODE&pairs=KSBA-KSQL[,…up to 6]  -> { pairs:{ "KSBA-KSQL": {routes, at, ac, ts} }, sel:{pair, custom, r, id, my, alt, ts} | null }
+//   POST { k, pair, entry }                   -> stores that pair's routes
+//   POST { k, sel }                           -> stores the latest route pick
+//
+// v0.26: every item has its own blob key and is written with one PUT, never read-modify-write. v0.25 kept one
+// record per code and merged into it; Netlify Blobs reads can be stale for a short while after a write
+// (eventual consistency), so a pick saved seconds after the routes read the old, empty record and wrote it
+// back, wiping the routes. Reads also prefer the uncached edge URL when the function context provides one.
 //
 // The code (12 characters, no 0/O/1/I/L, as in Schedule's sync) is made by the app on each device and handed to
 // Claude in the request; Claude puts it back in the link (k=). Nothing else identifies the pilot.
@@ -14,26 +20,29 @@
 const STORE_NAME = 'clearance-delivery-ffsync';
 const CODE_RE = /^[A-HJKMNP-Z2-9]{12}$/;
 const PAIR_RE = /^[A-Z0-9]{2,7}-[A-Z0-9]{2,7}$/;
-const MAX_PAIRS = 60, MAX_BYTES = 200000;
 
 function getBlobsAuth(event) {
   if (!event || !event.blobs || !event.headers) return {};
   try {
     const data = JSON.parse(Buffer.from(event.blobs, 'base64').toString('utf8'));
-    return { siteID: event.headers['x-nf-site-id'], token: data.token, edgeURL: data.url };
+    return { siteID: event.headers['x-nf-site-id'], token: data.token, edgeURL: data.url,
+             readURL: data.url_uncached || data.uncachedEdgeURL || data.uncached_url || data.url };
   } catch (err) { return {}; }
 }
-async function blobsRequest(method, { siteID, token, edgeURL }, key, body) {
-  const url = new URL(`/${siteID}/${STORE_NAME}/${key}`, edgeURL).toString();
+async function blobsRequest(method, auth, key, body) {
+  const base = method === 'get' ? auth.readURL : auth.edgeURL;
+  const url = new URL(`/${auth.siteID}/${STORE_NAME}/${encodeURIComponent(key)}`, base).toString();
   const res = await fetch(url, {
     method,
-    headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'text/plain' } : {}) },
+    headers: { authorization: `Bearer ${auth.token}`, ...(body ? { 'content-type': 'text/plain' } : {}) },
     body,
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Blobs ${method.toUpperCase()} failed (HTTP ${res.status})`);
   return method === 'get' ? res.text() : null;
 }
+const pairKey = (k, pair) => `${k}~p~${pair}`;
+const selKey = k => `${k}~sel`;
 
 const str = (v, n) => String(v == null ? '' : v).slice(0, n);
 function cleanEntry(e) {
@@ -50,6 +59,7 @@ function cleanSel(s) {
   if (!s || !PAIR_RE.test(String(s.pair || ''))) return null;
   return { pair: s.pair, custom: !!s.custom, r: str(s.r, 200), id: str(s.id, 12), my: str(s.my, 200), alt: +s.alt || 0, ts: +s.ts || Date.now() };
 }
+const parse = t => { try { return t ? JSON.parse(t) : null; } catch (e) { return null; } };
 
 exports.handler = async (event) => {
   const headers = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
@@ -58,33 +68,27 @@ exports.handler = async (event) => {
     const auth = getBlobsAuth(event);
     if (!(auth.siteID && auth.token && auth.edgeURL)) return reply(503, { error: 'storage unavailable' });
     if (event.httpMethod === 'GET') {
-      const k = String((event.queryStringParameters || {}).k || '');
+      const q = event.queryStringParameters || {};
+      const k = String(q.k || '');
       if (!CODE_RE.test(k)) return reply(400, { error: 'bad code' });
-      const txt = await blobsRequest('get', auth, k);
-      return reply(200, txt ? JSON.parse(txt) : { pairs: {}, sel: null });
+      const pairs = String(q.pairs || '').split(',').map(s => s.trim().toUpperCase()).filter(p => PAIR_RE.test(p)).slice(0, 6);
+      const [selTxt, ...pairTxts] = await Promise.all([blobsRequest('get', auth, selKey(k)), ...pairs.map(p => blobsRequest('get', auth, pairKey(k, p)))]);
+      const out = { pairs: {}, sel: parse(selTxt) };
+      pairs.forEach((p, i) => { const e = parse(pairTxts[i]); if (e) out.pairs[p] = e; });
+      return reply(200, out);
     }
     if (event.httpMethod !== 'POST') return reply(405, { error: 'GET or POST' });
     if ((event.body || '').length > 60000) return reply(413, { error: 'too large' });
     let b; try { b = JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body || '{}'); } catch (e) { return reply(400, { error: 'bad json' }); }
     if (!CODE_RE.test(String(b.k || ''))) return reply(400, { error: 'bad code' });
-    const txt = await blobsRequest('get', auth, b.k);
-    const rec = txt ? JSON.parse(txt) : { pairs: {}, sel: null };
-    rec.pairs = rec.pairs || {};
+    const done = [];
     if (b.pair && PAIR_RE.test(String(b.pair))) {
       const e = cleanEntry(b.entry);
-      if (e && (!rec.pairs[b.pair] || (rec.pairs[b.pair].ts || 0) < e.ts)) rec.pairs[b.pair] = e;
+      if (e) { await blobsRequest('put', auth, pairKey(b.k, b.pair), JSON.stringify(e)); done.push('pair'); }
     }
     const s = cleanSel(b.sel);
-    if (s && (!rec.sel || (rec.sel.ts || 0) < s.ts)) rec.sel = s;
-    const keys = Object.keys(rec.pairs).sort((a, c) => (rec.pairs[c].ts || 0) - (rec.pairs[a].ts || 0));
-    for (const key of keys.slice(MAX_PAIRS)) delete rec.pairs[key];
-    let out = JSON.stringify(rec);
-    while (out.length > MAX_BYTES && Object.keys(rec.pairs).length > 1) {
-      const oldest = Object.keys(rec.pairs).sort((a, c) => (rec.pairs[a].ts || 0) - (rec.pairs[c].ts || 0))[0];
-      delete rec.pairs[oldest]; out = JSON.stringify(rec);
-    }
-    await blobsRequest('put', auth, b.k, out);
-    return reply(200, rec);
+    if (s) { await blobsRequest('put', auth, selKey(b.k), JSON.stringify(s)); done.push('sel'); }
+    return reply(200, { stored: done });
   } catch (err) {
     return reply(502, { error: err.message });
   }
