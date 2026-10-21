@@ -260,7 +260,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.30</span>
+    <span class="ver mono">v0.31</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -311,6 +311,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
       <details class="set" id="depSet">
         <summary>Departure details <span id="depSetNote" style="color:var(--text-muted)"></span></summary>
         <div class="grid">
+          <label class="chk full"><input type="checkbox" id="dNoSid"> No SID <small>— I want radar vectors, no departure procedure</small></label>
           <label class="f">Facility (spoken)<input class="t" id="dFac" spellcheck="false"></label>
           <label class="f">Its frequency<input class="t" id="dCall" inputmode="decimal" spellcheck="false"></label>
           <label class="f">Departure procedure (written)<input class="t" id="dDpW" spellcheck="false" autocapitalize="characters" placeholder="e.g. SBA5, or blank"></label>
@@ -567,7 +568,7 @@ function savePrefs(){
   // while iOS is still loading its voice list and store whichever voice the menu showed first.
   PREFS = { voice: S.voicePicked && VOICES[+$('voice').value] ? VOICES[+$('voice').value].name : PREFS.voice,
     rate:+$('rate').value, pitch:+$('pitch').value, vol:+$('vol').value, noise:+$('noise').value,
-    squelch:$('squelch').checked, learn:$('learn').checked, style:$('style').value, level:S.level,
+    squelch:$('squelch').checked, learn:$('learn').checked, noSid:$('dNoSid').checked, style:$('style').value, level:S.level,
     tail:$('tail').value, prefix:$('prefix').value, dep:$('dep').value, dest:$('dest').value, cls:$('cls').value, vdef:1,
     rsel:routeSel() };
   try { localStorage.setItem(PREF_KEY, JSON.stringify(PREFS)); } catch (e) {}
@@ -870,10 +871,22 @@ function fillDepDetails(full){
     const fsrc = a && a.src === 'nasr' ? ` Frequencies: FAA NASR, effective ${fmtDay(NASR.meta.effective)}.` : ' Frequencies: OurAirports.';
     $('depSrc').textContent = (kd ? kd.src + fsrc : (a ? 'Typical defaults; no departure procedure on file for this airport. Check against your charts.' + fsrc : 'Departure not found — fill these in from your charts.')) + arNote;
     $('depSetNote').textContent = kd ? '' : '(check against your charts)';
+    delete $('depSetNote').dataset.base;
   }
   $('dFreq').value = pickDepFreq();
   syncVfrOption();
+  syncNoSid();
   updateRadio();
+}
+/* v0.31 No SID: the pilot has asked for radar vectors and no departure procedure. The procedure fields are
+   kept (so unchecking restores them) but greyed out, and vectors are forced on. */
+function syncNoSid(){
+  const on = $('dNoSid').checked;
+  ['dDpW','dDpS','dVec'].forEach(id => { $(id).disabled = on; });
+  $('dDpW').closest('label').style.opacity = $('dDpS').closest('label').style.opacity = $('dVec').closest('label').style.opacity = on ? .45 : '';
+  const n = $('depSetNote'), base = n.dataset.base !== undefined ? n.dataset.base : n.textContent;
+  n.dataset.base = base;
+  n.textContent = [on ? '· No SID' : '', base].filter(Boolean).join(' ');
 }
 /* "VFR departing Class C" is offered only when the departure is Class C per the FAA class-airspace data.
    Without FAA data (e.g. off the live site) it's offered at towered fields, marked unconfirmed. */
@@ -952,7 +965,7 @@ function ui(){
   $('btnShow').disabled = ph !== 'copied';
   const dest = destK() || $('dest').value.trim().toUpperCase();
   const lines = {
-    idle:   `${facName()}, ${shortTail()}, ${$('style').value === 'vfrc' ? 'VFR' : 'IFR'} to ${dest || '(destination)'}.`,
+    idle:   `${facName()}, ${shortTail()}, ${$('style').value === 'vfrc' ? 'VFR' : 'IFR'} to ${dest || '(destination)'}${$('dNoSid').checked && $('style').value !== 'vfrc' ? ', no SID, request radar vectors' : ''}.`,
     ready:  `Ready to copy, ${shortTail()}.`,
     reading:'(copy the clearance)',
     copied: S.done ? '' : `Read back the clearance, ending with ${shortTail()}. Or "say again"${c && c.routeMode === 'tec' && c.expansion ? ', or "request full route"' : ''}.`
@@ -990,10 +1003,12 @@ function buildClearance(){
   const rs = resolveStyle(others.length > 0);
   const route = rs.style === 'amend' ? others[Math.floor(Math.random()*others.length)] : filed;
   const toks = route.r ? route.r.split(/\s+/) : [];
-  let dp = { id:$('dDpW').value.trim().toUpperCase(), spoken:$('dDpS').value.trim(), vectors:$('dVec').checked };
+  const noSid = $('dNoSid').checked;
+  let dp = noSid ? { id:'', spoken:'', vectors:true, noSid:true }
+                 : { id:$('dDpW').value.trim().toUpperCase(), spoken:$('dDpS').value.trim(), vectors:$('dVec').checked };
   if (toks.length && isProc(toks[0])){   // route starts with a departure procedure (e.g. GAUCH3): it replaces the one in Departure details
-    const sid = toks.shift();
-    dp = { id:sid, spoken:sayProc(sid) + ' departure', vectors:false };
+    const sid = toks.shift();            // v0.31: with No SID it's dropped and the route starts at the next fix
+    if (!noSid) dp = { id:sid, spoken:sayProc(sid) + ' departure', vectors:false };
   }
   const c = {
     tail:$('tail').value.toUpperCase().replace(/[^A-Z0-9]/g,''), callSay:sayTail($('tail').value, $('prefix').value),
@@ -1020,7 +1035,7 @@ function fixesPart(c){
     return { text:[`RV ${c.firstFix}`, rest.length ? 'then ' + rest.join(' ') : '', 'direct'].filter(Boolean).join(', '),
              say: [`radar vectors ${sayFix(c.firstFix)}`, rest.length ? 'then ' + sayRoute(rest) : '', 'direct'].filter(Boolean).join(', ') };
   }
-  if (!c.allToks.length) return { text:'direct', say:'direct' };
+  if (!c.allToks.length) return c.dp && c.dp.noSid ? { text:'RV, direct', say:'radar vectors, direct' } : { text:'direct', say:'direct' };
   return { text:[c.allToks.join(' '), 'direct'].filter(Boolean).join(', '),
            say: [sayRoute(c.allToks), 'direct'].filter(Boolean).join(', ') };
 }
@@ -1061,8 +1076,13 @@ function clearanceParts(c){
     rt = [lead, vec ? `RV ${c.firstFix}` : '', 'then as filed'].filter(Boolean).join(', ');
     rs = [leadSay, vec ? `radar vectors ${sayFix(c.firstFix)}` : '', 'then as filed'].filter(Boolean).join(', ');
   } else if (c.routeMode === 'tec'){
+    if (dp.noSid){
+      const v = c.firstFix ? `RV ${c.firstFix}` : 'RV', vs = c.firstFix ? `radar vectors ${sayFix(c.firstFix)}` : 'radar vectors';
+      rt = `${v}, then ${c.routeId}`; rs = `${vs}, then ${sayTec(c.routeId)}`;
+    } else {
     rt = lead ? `${lead}, then ${c.routeId}` : `via ${c.routeId}`;
     rs = leadSay ? `${leadSay}, then ${sayTec(c.routeId)}` : `via ${sayTec(c.routeId)}`;
+    }
   } else {
     const f = fixesPart(c);
     rt = [lead, f.text].filter(Boolean).join(', ');
@@ -1351,7 +1371,7 @@ function atcShow(html){ $('atcBox').classList.remove('hidden'); $('atcLine').inn
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 function styleLabel(c){
   const base = c.vfr ? 'VFR departing Class C' : c.style === 'filed' ? 'cleared as filed' : c.style === 'amend' ? 'amended route' : (c.routeMode === 'tec' ? 'TEC route by name' : 'route spelled out');
-  return ($('style').value === 'grad' ? `level ${S.level} · ` : '') + base;
+  return ($('style').value === 'grad' ? `level ${S.level} · ` : '') + base + (c.dp && c.dp.noSid && !c.vfr ? ' · no SID' : '');
 }
 // A call that can't go through says why where the pilot is looking (status line above the pad), not just in the panel header.
 function callFail(msg){
@@ -1799,7 +1819,9 @@ function grade(text, c, typed){
   } else {
     items.push(...fixItems());
   }
-  if (!items.length) items.push({ lbl:'direct', hit: p.words.includes('direct') || hasPhrase(p, 'direct') });
+  if (c.dp && c.dp.noSid && !c.vfr) items.unshift({ lbl:'radar vectors', hit: p.words.includes('vectors') || p.words.includes('vector') });
+  if (!items.length || (items.length === 1 && c.dp && c.dp.noSid && !c.allToks.length && c.style !== 'filed'))
+    items.push({ lbl:'direct', hit: p.words.includes('direct') || hasPhrase(p, 'direct') });
   if (c.vfr) items.length = 0;
   const hits = items.filter(i => i.hit).length;
   const need = Math.max(1, items.length);   // v0.22: every route item (was half)
@@ -2206,6 +2228,7 @@ $('alt').addEventListener('change', () => { resetCall(); savePrefs(); });
 ['tail','prefix'].forEach(id => $(id).addEventListener('input', () => { ui(); savePrefs(); }));
 $('style').addEventListener('change', () => { showGradInfo(); savePrefs(); if (S.phase === 'idle') ui(); });
 $('learn').addEventListener('change', savePrefs);
+$('dNoSid').addEventListener('change', () => { syncNoSid(); savePrefs(); if (S.phase !== 'idle') resetCall(); else ui(); });
 $('btnCall').addEventListener('click', onCall);
 $('btnSayAgain').addEventListener('click', onSayAgain);
 $('btnRoute').addEventListener('click', onRequestRoute);
@@ -2249,6 +2272,8 @@ const fmtSl = { rate:v => (+v).toFixed(2) + '×', pitch:v => (+v).toFixed(2), vo
 document.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => { $('rate').value = b.dataset.rate; $('rateOut').textContent = fmtSl.rate(b.dataset.rate); savePrefs(); }));
 if (PREFS.squelch !== undefined) $('squelch').checked = !!PREFS.squelch;
 if (PREFS.learn !== undefined) $('learn').checked = !!PREFS.learn;
+if (PREFS.noSid !== undefined) $('dNoSid').checked = !!PREFS.noSid;
+syncNoSid();
 if (PREFS.style && [...$('style').options].some(o => o.value === PREFS.style)) $('style').value = PREFS.style;
 $('squelch').addEventListener('change', savePrefs);
 $('voice').addEventListener('change', () => { S.voicePicked = true; savePrefs(); });
