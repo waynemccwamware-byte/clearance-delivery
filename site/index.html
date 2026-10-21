@@ -253,7 +253,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.23</span>
+    <span class="ver mono">v0.24</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -558,7 +558,8 @@ function savePrefs(){
   PREFS = { voice: VOICES[+$('voice').value] ? VOICES[+$('voice').value].name : PREFS.voice,
     rate:+$('rate').value, pitch:+$('pitch').value, vol:+$('vol').value, noise:+$('noise').value,
     squelch:$('squelch').checked, learn:$('learn').checked, style:$('style').value, level:S.level,
-    tail:$('tail').value, prefix:$('prefix').value, dep:$('dep').value, dest:$('dest').value, cls:$('cls').value, vdef:1 };
+    tail:$('tail').value, prefix:$('prefix').value, dep:$('dep').value, dest:$('dest').value, cls:$('cls').value, vdef:1,
+    rsel:routeSel() };
   try { localStorage.setItem(PREF_KEY, JSON.stringify(PREFS)); } catch (e) {}
 }
 
@@ -766,6 +767,25 @@ function customRoute(){
 function curRoute(){
   if ($('route').value === 'custom') return customRoute();
   return S.opts[+$('route').value] || null;
+}
+/* v0.24: the chosen route (or the typed one) and the filed altitude are saved with the airports, per pair,
+   and put back when the app opens on the same pair. Until that restore has run, the saved choice is kept as is. */
+function routeSel(){
+  if (!S.rselReady) return PREFS.rsel;
+  const v = $('route').value, o = v === 'custom' ? null : (S.opts || [])[+v];
+  return { pair: depK() + '-' + destK(), custom: v === 'custom', r: o ? o.r : '', id: o ? (o.id || '') : '', my: $('myRoute').value, alt: +$('alt').value || 0 };
+}
+function restoreRouteSel(){
+  S.rselReady = true;
+  const s = PREFS.rsel; if (!s || s.pair !== depK() + '-' + destK()) return;
+  if (s.custom){ S.userCustom = true; $('route').value = 'custom'; $('myRoute').value = s.my || ''; }
+  else {
+    const i = (S.opts || []).findIndex(o => o.r === s.r && (o.id || '') === (s.id || ''));
+    if (i < 0) return;   // that route is no longer offered (FAA cycle, cache cleared): keep the default
+    $('route').value = String(i);
+  }
+  syncRouteBox();
+  if ([...$('alt').options].some(o => +o.value === s.alt)) $('alt').value = String(s.alt);
 }
 function fillRoutes(){
   S.opts = routeOptions(depK(), destK(), $('cls').value);
@@ -2116,9 +2136,9 @@ function onAirportsChanged(){
 $('dep').addEventListener('input', () => { depDirty = true; clearTimeout(apTimer); apTimer = setTimeout(onAirportsChanged, 300); });
 $('dest').addEventListener('input', () => { clearTimeout(apTimer); apTimer = setTimeout(onAirportsChanged, 300); });
 $('cls').addEventListener('change', () => { fillRoutes(); resetCall(); savePrefs(); });
-$('route').addEventListener('change', () => { S.userCustom = $('route').value === 'custom'; syncRouteBox(); resetCall(); });
-$('myRoute').addEventListener('input', () => { fillAlts(); showRouteInfo(); $('dFreq').value = pickDepFreq(); if (S.phase !== 'idle') resetCall(); });
-$('alt').addEventListener('change', resetCall);
+$('route').addEventListener('change', () => { S.userCustom = $('route').value === 'custom'; syncRouteBox(); resetCall(); savePrefs(); });
+$('myRoute').addEventListener('input', () => { fillAlts(); showRouteInfo(); $('dFreq').value = pickDepFreq(); if (S.phase !== 'idle') resetCall(); savePrefs(); });
+$('alt').addEventListener('change', () => { resetCall(); savePrefs(); });
 ['dFac','dCall'].forEach(id => $(id).addEventListener('input', () => { updateRadio(); ui(); }));
 ['tail','prefix'].forEach(id => $(id).addEventListener('input', () => { ui(); savePrefs(); }));
 $('style').addEventListener('change', () => { showGradInfo(); savePrefs(); if (S.phase === 'idle') ui(); });
@@ -2293,7 +2313,8 @@ if (CD_CH){
   }
 }
 
-showApNames(); fillRoutes(); fillDepDetails(true); padSize(); resetCall(); showGradInfo();
+showApNames(); fillRoutes(); if (window.__cdImported) S.rselReady = true; else restoreRouteSel();
+fillDepDetails(true); padSize(); resetCall(); showGradInfo();
 nasrInit();
 if (window.__cdImported) savePrefs();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(padRedraw);
