@@ -253,7 +253,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.26</span>
+    <span class="ver mono">v0.27</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -555,7 +555,9 @@ try {
 /* v0.8: new defaults are Relaxed speed and Samantha. Clear a saved voice and speed once so they take effect. */
 if (PREFS && !PREFS.vdef){ delete PREFS.voice; delete PREFS.rate; PREFS.vdef = 1; }
 function savePrefs(){
-  PREFS = { voice: VOICES[+$('voice').value] ? VOICES[+$('voice').value].name : PREFS.voice,
+  // v0.27: the voice is saved only when the pilot picks one. Other saves (some at startup, since v0.25) could run
+  // while iOS is still loading its voice list and store whichever voice the menu showed first.
+  PREFS = { voice: S.voicePicked && VOICES[+$('voice').value] ? VOICES[+$('voice').value].name : PREFS.voice,
     rate:+$('rate').value, pitch:+$('pitch').value, vol:+$('vol').value, noise:+$('noise').value,
     squelch:$('squelch').checked, learn:$('learn').checked, style:$('style').value, level:S.level,
     tail:$('tail').value, prefix:$('prefix').value, dep:$('dep').value, dest:$('dest').value, cls:$('cls').value, vdef:1,
@@ -2191,7 +2193,7 @@ if (PREFS.squelch !== undefined) $('squelch').checked = !!PREFS.squelch;
 if (PREFS.learn !== undefined) $('learn').checked = !!PREFS.learn;
 if (PREFS.style && [...$('style').options].some(o => o.value === PREFS.style)) $('style').value = PREFS.style;
 $('squelch').addEventListener('change', savePrefs);
-$('voice').addEventListener('change', savePrefs);
+$('voice').addEventListener('change', () => { S.voicePicked = true; savePrefs(); });
 $('btnSample').addEventListener('click', () => {
   if (S.talking) return;
   unlockSpeech(); ensureAudio();
