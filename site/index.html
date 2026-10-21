@@ -198,6 +198,13 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
   .presets{ margin-left:0; }
   .tools .sep{ display:none; }
 }
+/* v0.29 iPhone/iPad: one tap before anything, so ATC's voice is unlocked before the mic ever opens */
+.tap-start{ position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:24px;
+  background:rgba(16,20,26,.86); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); cursor:pointer; }
+.tap-start .ts-box{ max-width:320px; width:100%; text-align:center; padding:22px 20px; border:1px solid var(--amber-dim);
+  border-radius:12px; background:var(--bg-panel); box-shadow:0 0 0 1px var(--bezel), 0 10px 30px rgba(0,0,0,.4); }
+.tap-start .ts-t{ font:600 20px 'IBM Plex Sans', sans-serif; color:var(--amber); }
+.tap-start .ts-s{ margin-top:8px; font-size:13px; line-height:1.45; color:var(--text-muted); }
 /* GGP-READBACK CSS v1 · App Conventions §14 (same block in every app that grades spoken readbacks) */
 #rbxSet .rbx-chk{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-primary); margin:2px 0 4px; cursor:pointer; }
 #rbxSet .rbx-hint{ font-size:11.5px; color:var(--text-muted); line-height:1.45; margin:4px 0 6px; }
@@ -253,7 +260,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.28</span>
+    <span class="ver mono">v0.29</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -1171,6 +1178,19 @@ function unlockSpeech(){
   } catch (e) { speechUnlocking = false; }
 }
 ['touchend', 'click', 'keydown'].forEach(t => document.addEventListener(t, unlockSpeech, { passive:true, capture:true }));
+/* v0.29: on iPhone/iPad the unlock fails if the first tap is Push to talk: by its release the mic is open, and iOS
+   won't start speech while the page records (Wayne, 20-Oct-2026: v0.28 still silent until a plain tap elsewhere).
+   So a one-time "Tap to start" screen takes the first tap, unlocking speech and Web Audio before the mic opens. */
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function tapToStart(){
+  if (!IS_IOS || !('speechSynthesis' in window) || speechUnlocked || document.querySelector('.tap-start')) return;
+  const ov = document.createElement('div');
+  ov.className = 'tap-start'; ov.setAttribute('role', 'button'); ov.setAttribute('aria-label', 'Tap to start');
+  ov.innerHTML = '<div class="ts-box"><div class="ts-t">Tap to start</div><div class="ts-s">iPhone needs one tap before Clearance Delivery can talk to you.</div></div>';
+  const go = e => { e.preventDefault(); unlockSpeech(); ensureAudio(); ov.remove(); };
+  ov.addEventListener('click', go);
+  document.body.appendChild(ov);
+}
 function makeUtt(text, rate){
   const u = new SpeechSynthesisUtterance(text);
   const v = VOICES[+$('voice').value];
@@ -2419,6 +2439,7 @@ showApNames(); fillRoutes(); if (window.__cdImported) S.rselReady = true; else r
 fillDepDetails(true); padSize(); resetCall(); showGradInfo();
 nasrInit();
 syncPull();
+tapToStart();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncPull(); });
 window.addEventListener('pageshow', e => { if (e.persisted) syncPull(); });
 if (window.__cdImported) savePrefs();
