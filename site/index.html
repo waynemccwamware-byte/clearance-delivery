@@ -253,7 +253,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.21</span>
+    <span class="ver mono">v0.22</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -1329,7 +1329,7 @@ function onRequestRoute(){
   speakSeq([`${c.callSay}, ${c.expansion.say}.`], () => warmRec(), null, c.rateMul);
 }
 
-/* GGP-READBACK START v1 · 20-Oct-2026 · shared readback helper, App Conventions §14 · master: Clearance Delivery site/index.html
+/* GGP-READBACK START v1.1 · 20-Oct-2026 · shared readback helper, App Conventions §14 · master: Clearance Delivery site/index.html
    Copy this block unchanged between apps. It does three things:
    1. candidates(): every reading of a transmission built from the browser's alternate hearings (maxAlternatives).
    2. normalize(): sound-alike repair before grading: words that sound like a NATO letter ("pop" → papa,
@@ -1337,18 +1337,20 @@ function onRequestRoute(){
    3. A readback log on this device (localStorage), holding both the old and the new verdict for every
       spoken readback, with Download / Clear and an "I said it right" flag. Nothing leaves the device.
    The "Improved readback matching" checkbox (on by default) picks which verdict grades the readback;
-   off = grading exactly as before this block existed. */
+   off = grading exactly as before this block existed.
+   v1.1 (20-Oct-2026): NATO-letter repair only next to a digit or a NATO word (callsign context). */
 const RBX = (() => {
-  const VER = 'rbx-v1';
+  const VER = 'rbx-v1.1';
   const K_ON = 'ggp.rbx.on', K_LOG = 'ggp.rbx.log.v1', MAX_LOG = 300;
   const NATO_W = ['alpha','bravo','charlie','delta','echo','foxtrot','golf','hotel','india','juliett','kilo','lima','mike',
     'november','oscar','papa','quebec','romeo','sierra','tango','uniform','victor','whiskey','xray','yankee','zulu'];
   const NATO_SET = new Set(NATO_W.concat(['alfa','juliet','whisky']));
+  const DIGIT_W = new Set('zero oh one wun two three tree four fower five fife six seven eight nine niner ten eleven twelve'.split(' '));
   // Ordinary readback / English words: never re-read as a NATO letter or a fix name.
   const KEEP = new Set(('right left heading turn turning climb climbing descend descending maintain maintaining contact contacting '
     + 'center centre approach departure tower ground clearance delivery degrees degree thousand hundred point decimal dot '
     + 'and the to too two for four fore with roger wilco over level flight feet foot cleared clear via radar vector vectors '
-    + 'then direct expect expecting minutes minute after frequency squawk squawking as filed field airport call sign callsign '
+    + 'then direct expect expecting minutes minute after frequency squawk squawks squawking squak score as filed field airport call sign callsign '
     + 'say again read back ready copy request route tech tec void if not off by advise time released release intentions of '
     + 'at or below above vfr ifr information on in is it i a an up down standby unable negative affirmative good day '
     + 'thanks thank you end ask be see sea we he me my our your this that there here what when won one wun oh zero niner nine '
@@ -1430,16 +1432,23 @@ const RBX = (() => {
         hit.forEach(j => { done[j] = true; });
       }
     }
-    // 2. NATO letters: one word, or two words heard for one ("zoo lou", "pa pa")
-    for (let i = 0; i < toks.length; i++){
-      if (done[i] || !free(i)) continue;
-      const one = phon(clean[i]);
-      let m = NATO_KEYS.find(([k, , n]) => near(one, k, clean[i].length, n));
-      if (m){ changes.push([toks[i], m[1]]); out[i] = m[1]; done[i] = true; continue; }
-      if (i + 1 < toks.length && !done[i+1] && free(i+1)){
-        const two = phon(clean[i] + clean[i+1]);
-        m = NATO_KEYS.find(([k, , n]) => k.length >= 2 && near(two, k, (clean[i] + clean[i+1]).length, n));
-        if (m){ changes.push([toks[i] + ' ' + toks[i+1], m[1]]); out[i] = m[1]; out[i+1] = ''; done[i] = done[i+1] = true; i++; }
+    // 2. NATO letters: one word, or two words heard for one ("zoo lou", "pa pa"). v1.1: only in callsign
+    //    context, i.e. next to a digit or a NATO word (repaired ones count), so "radar Factory" stays as heard.
+    const isDigitTok = j => j >= 0 && j < toks.length && (/^\d/.test(clean[j]) || DIGIT_W.has(clean[j]));
+    const isNatoTok = j => j >= 0 && j < toks.length && NATO_SET.has(String(out[j]).toLowerCase());
+    const ctx = (a, b) => isDigitTok(a - 1) || isDigitTok(b + 1) || isNatoTok(a - 1) || isNatoTok(b + 1);
+    for (let changedPass = true; changedPass; ){
+      changedPass = false;
+      for (let i = 0; i < toks.length; i++){
+        if (done[i] || !free(i)) continue;
+        const one = phon(clean[i]);
+        let m = ctx(i, i) && NATO_KEYS.find(([k, , n]) => near(one, k, clean[i].length, n));
+        if (m){ changes.push([toks[i], m[1]]); out[i] = m[1]; done[i] = true; changedPass = true; continue; }
+        if (i + 1 < toks.length && !done[i+1] && free(i+1) && ctx(i, i + 1)){
+          const two = phon(clean[i] + clean[i+1]);
+          m = NATO_KEYS.find(([k, , n]) => k.length >= 2 && near(two, k, (clean[i] + clean[i+1]).length, n));
+          if (m){ changes.push([toks[i] + ' ' + toks[i+1], m[1]]); out[i] = m[1]; out[i+1] = ''; done[i] = done[i+1] = true; changedPass = true; i++; }
+        }
       }
     }
     return { text: out.filter(Boolean).join(' '), changes };
@@ -1539,6 +1548,10 @@ const STOP = new Set(['cleared','clear','to','the','via','departure','radar','ve
 
 function tokenize(text){
   return String(text).toLowerCase()
+    // Chrome's money-style numbers (from real logs): "3,9000" = 3,000 then 9,000; "$5,10 minutes" = 5,000 then 10
+    .replace(/\$?(\d{1,2}),(\d{1,2})000\b/g, '$1000 $2000')
+    .replace(/\$(\d{1,2}),(\d{1,2})\b/g, '$1000 $2')
+    .replace(/\$/g, ' ')
     .replace(/(\d),(\d{3})/g, '$1$2')
     .replace(/x-ray/g,'xray')
     .replace(/([a-z])(\d)/g,'$1 $2').replace(/(\d)([a-z])/g,'$1 $2')
@@ -1642,7 +1655,7 @@ function matchFreq(p, f){
   const noOne = d.startsWith('1') ? d.slice(1) : d;
   return p.compact.includes(d) || (noOne.length >= 3 && p.compact.includes(noOne));
 }
-// Spoken readbacks only: accept a 4+ digit code with one digit off (speech recognition often mishears a single digit).
+// Unused since v0.22 (exact digits now); kept for an easy return to the one-digit-off allowance.
 function nearDigits(p, want){
   if (p.compact.includes(want)) return true;
   const n = want.length; if (n < 4) return false;
@@ -1664,6 +1677,18 @@ function matchCallsign(p, tail, prefix){
   if (hits(strong) >= 2 || hits(weak) >= 3) return true;
   return !!prefix && hasPhrase(p, prefix.split(' ')[0]) && hits(weak) >= 1;
 }
+// v0.22: the minutes in "expect (alt) (n) minutes after departure": the number just before "minute(s)"/"min"
+function minutesHeard(text, want){
+  const t = tokenize(text), w = String(want);
+  const val = x => /^\d+$/.test(x || '') ? String(+x) : W2D[x] !== undefined ? W2D[x] : TEENS[x] || (TENS[x] ? TENS[x] + '0' : null);
+  for (let i = 1; i < t.length; i++){
+    if (!/^min/.test(t[i])) continue;
+    const a = val(t[i-1]), b = val(t[i-2]);
+    if (a === w || (a !== null && b !== null && b + a === w)) return true;
+    if (/^\d+$/.test(t[i-1]) && t[i-1].length >= w.length + 4 && t[i-1].endsWith(w)) return true;   // "500010 minutes"
+  }
+  return false;
+}
 function grade(text, c, typed){
   const p = parse(text, typed);
   const res = {};
@@ -1684,30 +1709,32 @@ function grade(text, c, typed){
     items.push({ lbl:'as filed', hit: p.words.includes('filed') || (p.words.includes('as') && p.words.includes('field')) });
   } else if (c.routeMode === 'tec'){
     const fx = fixItems(), fxHits = fx.filter(i => i.hit).length;
-    items.push({ lbl:c.routeId, hit: matchTec(p, c.routeId) || (fx.length > 0 && fxHits >= Math.ceil(fx.length * 0.6)) });
+    items.push({ lbl:c.routeId, hit: matchTec(p, c.routeId) || (fx.length > 0 && fxHits === fx.length) });   // v0.22: every fix (was 60%)
   } else {
     items.push(...fixItems());
   }
   if (!items.length) items.push({ lbl:'direct', hit: p.words.includes('direct') || hasPhrase(p, 'direct') });
   if (c.vfr) items.length = 0;
   const hits = items.filter(i => i.hit).length;
-  const need = Math.max(1, Math.ceil(items.length * 0.5));   // lenient: half the route items
+  const need = Math.max(1, items.length);   // v0.22: every route item (was half)
   res.R = c.vfr ? { ok:true, items:[], hits:0, need:0 } : { ok: hits >= need, items, hits, need };
   const aItems = [];
   if (c.vfr) aItems.push({ lbl:'VFR at or below ' + c.vfrAlt.toLocaleString(), hit:matchAlt(p, c.vfrAlt, typed) });
   else if (c.init && c.filed && c.filed > c.init){
     aItems.push({ lbl:c.init.toLocaleString(), hit:matchAlt(p, c.init, typed) });
     aItems.push({ lbl:'expect ' + c.filed.toLocaleString(), hit:matchAlt(p, c.filed, typed) });
+    if (c.expectMin) aItems.push({ lbl:c.expectMin + ' min', hit:minutesHeard(text, c.expectMin) });
   } else { const a = c.filed || c.init; aItems.push({ lbl:a.toLocaleString(), hit:matchAlt(p, a, typed) }); }
-  // Lenient: the initial altitude is what must be read back; the "expect" altitude is good practice, not required.
-  if (aItems.length > 1) aItems[1].optional = true;
+  // v0.22: the expect altitude and its minutes are required too (v0.9 made the expect altitude optional).
   res.A = { ok: aItems.filter(i => !i.optional).every(i => i.hit), items:aItems };
   const fq = String(c.freq).replace(/\./g,'').replace(/0+$/,'');
-  res.F = { ok: matchFreq(p, c.freq) || (!typed && nearDigits(p, fq.length > 5 ? fq.slice(1) : fq)), want:c.freq };
-  res.T = { ok: p.compact.includes(c.squawk) || (!typed && nearDigits(p, c.squawk)), want:c.squawk };
+  // v0.22: frequency, squawk and void time must be exact (v0.9 allowed one digit off when spoken); the browser's
+  // alternate hearings (RBX) now absorb the mishears that allowance was for.
+  res.F = { ok: matchFreq(p, c.freq), want:c.freq };
+  res.T = { ok: p.compact.includes(c.squawk), want:c.squawk };
   res.CS = { ok: typed ? true : matchCallsign(p, c.tail, $('prefix').value.trim()) };
   // V: only the void time must be read back (lenient: the not-later-than time and time check aren't graded)
-  res.V = { ok: !c.void || p.compact.includes(c.void.voidT) || (!typed && nearDigits(p, c.void.voidT)), want: c.void ? 'void ' + c.void.voidT + 'Z' : '' };
+  res.V = { ok: !c.void || p.compact.includes(c.void.voidT), want: c.void ? 'void ' + c.void.voidT + 'Z' : '' };
   res.all = res.C.ok && res.R.ok && res.A.ok && res.F.ok && res.T.ok && res.V.ok && res.CS.ok;
   res.heard = p.text;
   return res;
