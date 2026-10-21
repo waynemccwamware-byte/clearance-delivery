@@ -269,7 +269,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.33</span>
+    <span class="ver mono">v0.34</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -2247,7 +2247,7 @@ pad.addEventListener('pointermove', e => {
 /* ---- PAD ANCHOR: keep the copy pad where it is on screen while things above it change size
    (live transcript, Clearance Delivery box, Departure details). Safari has no scroll anchoring of its own.
    Only acts while the pad is at least partly on screen; your own scrolling just moves the anchor. */
-const PA = { top:null, prog:false };
+const PA = { top:null, prog:false, skipUntil:0 };
 function paRecord(){
   const w = $('padWrap');
   if (!w || w.classList.contains('hidden')){ PA.top = null; return; }
@@ -2255,6 +2255,9 @@ function paRecord(){
   PA.top = (r.bottom > 0 && r.top < window.innerHeight) ? r.top : null;
 }
 function paHold(){
+  // v0.34: a menu the pilot opens or closes (Departure details, Voice & radio, Readback recognition) should open
+  // downward like any other; holding the pad there scrolled the page and made it look like it opened upward.
+  if (performance.now() < PA.skipUntil){ paRecord(); return; }
   if (PA.top === null || PA.prog) return;
   const d = $('padWrap').getBoundingClientRect().top - PA.top;
   if (Math.abs(d) < 1) return;
@@ -2262,6 +2265,8 @@ function paHold(){
   requestAnimationFrame(() => { PA.prog = false; paRecord(); });
 }
 window.addEventListener('scroll', () => { if (!PA.prog) paRecord(); }, { passive:true });
+document.addEventListener('click', e => { if (e.target instanceof Element && e.target.closest('summary')) PA.skipUntil = performance.now() + 700; }, true);
+document.addEventListener('toggle', () => { PA.skipUntil = Math.max(PA.skipUntil, performance.now() + 400); }, true);
 if ('ResizeObserver' in window){
   const ro = new ResizeObserver(paHold);
   document.querySelectorAll('.step').forEach(el => ro.observe(el));
