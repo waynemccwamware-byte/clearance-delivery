@@ -121,6 +121,15 @@ textarea.t{ resize:vertical; min-height:0; }
 .chk{ display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-primary); cursor:pointer; }
 .chk input{ width:17px; height:17px; accent-color:var(--amber); flex:none; }
 .chk small{ color:var(--text-muted); font-size:11.5px; }
+/* v0.35 aircraft class as radio buttons (2 x 2; one column on narrow phones) */
+div.f{ display:flex; flex-direction:column; gap:4px; font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; }
+.cls-radios{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px; text-transform:none; letter-spacing:0; }
+@media (max-width:380px){ .cls-radios{ grid-template-columns:minmax(0,1fr); } }
+.cls-radios label{ display:flex; align-items:center; gap:7px; padding:6px 8px; border:1px solid var(--bezel-hi); border-radius:6px;
+  background:var(--bg-deep); font:400 13px 'IBM Plex Sans', sans-serif; color:var(--text-primary); cursor:pointer; line-height:1.25; }
+.cls-radios label:has(input:checked){ border-color:var(--amber); }
+.cls-radios input{ width:16px; height:16px; accent-color:var(--amber); flex:none; margin:0; }
+.cls-radios input:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
 
 details.set{ margin-top:8px; border-top:1px solid var(--bezel); padding-top:7px; }
 details.set summary{ cursor:pointer; font-size:12.5px; color:var(--text-muted); }
@@ -269,7 +278,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.34</span>
+    <span class="ver mono">v0.35</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -295,14 +304,15 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
           </div>
           <label class="f">Destination<input class="t" id="dest" value="KSBP" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="apname" id="destName"></span></label>
         </div>
-        <label class="f full">Aircraft (TEC class)
-          <select class="t" id="cls">
+        <div class="f full" role="radiogroup" aria-label="Aircraft (TEC class)">Aircraft (TEC class)
+          <div class="cls-radios" id="clsRadios"></div>
+          <select class="t hidden" id="cls" tabindex="-1" aria-hidden="true">
             <option value="Q">Piston / prop, under 190 kt (Q)</option>
             <option value="P">Non-jet, 190 kt or faster (P)</option>
             <option value="M">Turboprop / special, 190 kt or faster (M)</option>
             <option value="J">Jet (J)</option>
           </select>
-        </label>
+        </div>
         <label class="f full">Filed route<select class="t" id="route"></select></label>
         <label class="f full hidden" id="myRouteWrap">Your route (fixes and airways, or a TEC code)
           <textarea class="t" id="myRoute" rows="2" spellcheck="false" autocapitalize="characters" autocomplete="off" placeholder="HENER V186 DARTS V597 MZB   or   SBAQ27"></textarea>
@@ -313,7 +323,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
           <a class="btn sm" id="faLink" href="#" target="_blank" rel="noopener" style="text-decoration:none">See filed routes on FlightAware ↗</a>
         </div>
         <div class="full hint" id="ffNote"></div>
-        <label class="f">Filed altitude<select class="t" id="alt"></select></label>
+        <label class="f"><span id="altLbl">Filed altitude</span><select class="t" id="alt"></select></label>
         <label class="f">Clearance style
           <select class="t" id="style">
             <option value="full">Full clearance (TEC by name)</option>
@@ -445,7 +455,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   </div>
 
-  <p class="fine" id="fine">Training aid only, not for navigation or flight planning. Routes: FAA NFDC Preferred Routes Database (TEC, low and high preferred routes), effective 03-Sep-2026 to 29-Oct-2026, downloaded 17-Oct-2026; plus ATC-cleared KSBA routes from ForeFlight, pulled 17-Oct-2026, and any routes you bring back with "Get routes from ForeFlight (via Claude)", which uses your own ForeFlight connector. Those routes, and your last route and altitude pick, are kept on this device and on this site under a random sync code the app makes, so the app finds them again in your other browsers (on iPhone, Claude's link opens in the Claude app's own browser); nothing else about you is stored. The FlightAware link opens FlightAware's list of recently filed routes for the pair (filed, not necessarily flown as filed). Departure procedure names spoken from a route (e.g. GAUCH3 as "Gaucho Three") are a best guess. TEC aircraft classes per Redbird Flight's TEC summary: J jet; M turboprop/special 190 kt+; P non-jet 190 kt+; Q non-jet 189 kt or less; the number after the letters is the highest altitude for that class. TEC routes with a name (e.g. SBAQ27) are read by name as departure city, phonetic letter and digits ("Santa Barbara Quebec two seven"), following the "Ontario Papa 16" example in that summary; the digit-by-digit reading is an assumption. US airport frequencies: FAA NASR 28-day subscription (FRQ frequency data), refreshed on this site each cycle ("Update FAA data" in Departure details); OurAirports is the fallback and covers everywhere else. Where a field has no Clearance, Ground or Tower frequency, the app uses the approach or center frequency OurAirports lists for that field; if none is listed, it borrows the nearest field's (within 80 km) and says so in Departure details. Check either against the Chart Supplement. Airport names, frequencies and navaid names: OurAirports (public domain), bundled 17-Oct-2026: about 25,500 airports, i.e. every US, Canadian and Mexican airport and seaplane base plus worldwide airports with an ICAO code. Small fields often have no published Clearance Delivery or departure frequency in that data; the app then uses typical defaults, which you can edit in Departure details. KSBA departure: Santa Barbara Five (SBA5), on radar vectors maintain 3000, expect filed altitude 5 minutes after departure (FAA chart AL-378). Other airports get typical defaults (radar vectors, 3,000 ft or field elevation + 2,000, expect filed altitude in 10 minutes); check them against your charts in Departure details. Departure frequency is picked from the published sector split where there is one. Filed-altitude choices follow the odd/even IFR cruising rule (14 CFR 91.179, from memory). Speech recognition is done by your browser: Chrome sends audio to Google, Safari uses Apple's service.</p>
+  <p class="fine" id="fine">Training aid only, not for navigation or flight planning. Routes: FAA NFDC Preferred Routes Database (TEC, low and high preferred routes), effective 03-Sep-2026 to 29-Oct-2026, downloaded 17-Oct-2026; plus ATC-cleared KSBA routes from ForeFlight, pulled 17-Oct-2026, and any routes you bring back with "Get routes from ForeFlight (via Claude)", which uses your own ForeFlight connector. Those routes, and your last route and altitude pick, are kept on this device and on this site under a random sync code the app makes, so the app finds them again in your other browsers (on iPhone, Claude's link opens in the Claude app's own browser); nothing else about you is stored. The FlightAware link opens FlightAware's list of recently filed routes for the pair (filed, not necessarily flown as filed). Departure procedure names spoken from a route (e.g. GAUCH3 as "Gaucho Three") are a best guess. TEC aircraft classes per Redbird Flight's TEC summary: J jet; M turboprop/special 190 kt+; P non-jet 190 kt+; Q non-jet 189 kt or less; the number after the letters is the highest altitude for that class. TEC routes with a name (e.g. SBAQ27) are read by name as departure city, phonetic letter and digits ("Santa Barbara Quebec two seven"), following the "Ontario Papa 16" example in that summary; the digit-by-digit reading is an assumption. US airport frequencies: FAA NASR 28-day subscription (FRQ frequency data), refreshed on this site each cycle ("Update FAA data" in Departure details); OurAirports is the fallback and covers everywhere else. Where a field has no Clearance, Ground or Tower frequency, the app uses the approach or center frequency OurAirports lists for that field; if none is listed, it borrows the nearest field's (within 80 km) and says so in Departure details. Check either against the Chart Supplement. Airport names, frequencies and navaid names: OurAirports (public domain), bundled 17-Oct-2026: about 25,500 airports, i.e. every US, Canadian and Mexican airport and seaplane base plus worldwide airports with an ICAO code. Small fields often have no published Clearance Delivery or departure frequency in that data; the app then uses typical defaults, which you can edit in Departure details. KSBA departure: Santa Barbara Five (SBA5), on radar vectors maintain 3000, expect filed altitude 5 minutes after departure (FAA chart AL-378). Other airports get typical defaults (radar vectors, 3,000 ft or field elevation + 2,000, expect filed altitude in 10 minutes); check them against your charts in Departure details. Departure frequency is picked from the published sector split where there is one. Filed-altitude choices follow the odd/even IFR cruising rule (14 CFR 91.179, from memory); with "VFR departing Class C" they follow the VFR rule, odd or even thousands + 500 (14 CFR 91.159(a), checked 21-Oct-2026). Routes from ATC clearances (ForeFlight or the bundled library) don't limit the altitude. Speech recognition is done by your browser: Chrome sends audio to Google, Safari uses Apple's service.</p>
 
   <!-- One Push to talk, like the airplane: floats at the bottom, labeled with what's expected next -->
   <div class="ptt-dock"><button class="ptt" id="ptt" type="button" data-ptt><span class="ptt-main">● Push to talk</span><span class="ptt-sub" id="pttSub"></span></button></div>
@@ -738,7 +748,10 @@ function ffOptions(depK, destK, cls){
     const kind = x.t === 'C' ? 'ATC-cleared' : x.t === 'T' ? 'TEC' : 'ForeFlight-generated';
     const engTxt = (x.eng || '').split('').map(c => ({P:'piston',T:'turboprop',J:'jet'})[c]).filter(Boolean).join('/');
     const hiRaw = Math.max(x.lo || 3000, x.hi || 17000);
-    const o = { id, r, lo:Math.max(3000, x.lo || 3000), hi:cap ? Math.min(cap, hiRaw) : hiRaw, kind:'ForeFlight ' + kind, ff:true,
+    // v0.35: an ATC-cleared or ForeFlight route doesn't set the altitude, so any altitude for the class is offered;
+    // the altitudes ForeFlight saw it filed at (seenLo–seenHi) only pick the default and are shown in the route info.
+    const o = { id, r, lo:3000, hi:cap || 41000, seenLo:Math.max(3000, x.lo || 3000), seenHi:cap ? Math.min(cap, hiRaw) : hiRaw, anyAlt:true,
+      kind:'ForeFlight ' + kind, ff:true,
       n:`${x.t === 'F' ? 'ForeFlight-generated route' : 'ForeFlight ' + kind}${x.n ? ' ' + x.n + ' times' : ''}${x.d ? ', last ' + x.d : ''}${engTxt ? ' (' + engTxt + ')' : ''}${x.t === 'F' ? ' — not an ATC clearance' : ''}` };
     (classes.includes(cls) ? mine : other).push(o);
   }
@@ -764,7 +777,7 @@ function routeOptions(depK, destK, cls){
   }
   for (const L of ((LIB[depK] || {})[destK] || [])){
     if (!L.cls.includes(cls) || out.some(x => x.r === L.r)) continue;
-    out.push({ id:'', r:L.r, lo:L.lo, hi:L.hi, kind:'ATC-cleared', n:L.n });
+    out.push({ id:'', r:L.r, lo:3000, hi:CLS_MAX_ALT[cls] || 41000, seenLo:L.lo, seenHi:L.hi, anyAlt:true, kind:'ATC-cleared', n:L.n });
   }
   return out;
 }
@@ -841,13 +854,24 @@ function courseMag(){   // dep → dest magnetic course, for odd/even altitudes
 function fillAlts(){
   const r = curRoute() || { lo:3000, hi:17000 };
   const east = courseMag() < 180;   // 91.179: magnetic course 0–179° odd thousands, 180–359° even
+  const vfr = $('style').value === 'vfrc';
   const opts = [];
-  const top = Math.min(r.hi, 41000, CLS_MAX_ALT[$('cls').value] || 41000);
-  for (let a = Math.max(3000, r.lo); a <= top; a += 1000) if (((a/1000) % 2 === 1) === east) opts.push(a);
-  if (!opts.length){ const a = Math.max(3000, r.lo); opts.push(((a/1000) % 2 === 1) === east ? a : a + 1000); }
+  if (vfr){   // v0.35, 91.159(a): VFR more than 3,000 ft above the surface, below 18,000 MSL: odd (east) / even (west) thousands + 500
+    for (let a = 3500; a <= 17500; a += 1000) if ((Math.floor(a/1000) % 2 === 1) === east) opts.push(a);
+  } else {
+    const top = Math.min(r.hi, 41000, CLS_MAX_ALT[$('cls').value] || 41000);
+    for (let a = Math.max(3000, r.lo); a <= top; a += 1000) if (((a/1000) % 2 === 1) === east) opts.push(a);
+    if (!opts.length){ const a = Math.max(3000, r.lo); opts.push(((a/1000) % 2 === 1) === east ? a : a + 1000); }
+  }
+  $('altLbl').textContent = vfr ? 'Requested altitude (VFR)' : 'Filed altitude';
   const sel = $('alt'), prev = +sel.value;
   sel.innerHTML = opts.map(a => `<option value="${a}">${a >= 18000 ? 'FL' + a/100 : a.toLocaleString()}</option>`).join('');
-  const pick = opts.includes(prev) ? prev : (opts.filter(a => a <= 9000).pop() || opts[0]);
+  const saved = PREFS.rsel && PREFS.rsel.pair === depK() + '-' + destK() ? +PREFS.rsel.alt : 0;
+  const near = t => opts.reduce((b, a) => Math.abs(a - t) < Math.abs(b - t) ? a : b, opts[0]);
+  const pick = opts.includes(prev) ? prev : opts.includes(saved) ? saved
+    : vfr ? (opts.find(a => a >= 4500) || opts[0])
+    : r.seenHi ? near(Math.min(r.seenHi, Math.max(r.seenLo || 0, 9000)))
+    : (opts.filter(a => a <= 9000).pop() || opts[0]);
   sel.value = pick;
 }
 function showRouteInfo(){
@@ -866,7 +890,9 @@ function showRouteInfo(){
       + 'paste or type your route: fixes and airways after the departure (e.g. HENER V186 DARTS V597 MZB), or a TEC code like SBAQ27.';
     return;
   }
-  $('routeInfo').innerHTML = `<span class="route-chip">${r.id ? r.id + ': ' : ''}${r.r || '(route not in database)'}</span><br>${r.n}. Altitudes ${r.lo.toLocaleString()}–${r.hi.toLocaleString()} ft, ${courseMag() < 180 ? 'odd' : 'even'} thousands for the direction of flight.`;
+  $('routeInfo').innerHTML = `<span class="route-chip">${r.id ? r.id + ': ' : ''}${r.r || '(route not in database)'}</span><br>${r.n}. ${$('style').value === 'vfrc' ? `VFR: ${courseMag() < 180 ? 'odd' : 'even'} thousands + 500 for the direction of flight (the route isn't used in a VFR clearance).`
+    : r.anyAlt ? `Any altitude: this route came from ATC clearances, not an altitude-limited FAA route${r.seenLo ? `; ForeFlight saw it filed at ${r.seenLo === r.seenHi ? r.seenLo.toLocaleString() : r.seenLo.toLocaleString() + '–' + r.seenHi.toLocaleString()} ft` : ''}. ${courseMag() < 180 ? 'Odd' : 'Even'} thousands for the direction of flight.`
+    : `Altitudes ${r.lo.toLocaleString()}–${r.hi.toLocaleString()} ft, ${courseMag() < 180 ? 'odd' : 'even'} thousands for the direction of flight.`}`;
 }
 /* Departure details: prefilled from data, editable. full=true also resets the facility/procedure fields (departure changed). */
 function fillDepDetails(full){
@@ -921,7 +947,7 @@ function syncVfrOption(){
   const st = classCState(), o = $('optVfr');
   o.hidden = o.disabled = st === 'no';
   o.textContent = st === 'maybe' ? 'VFR departing Class C (Class C not confirmed)' : 'VFR departing Class C';
-  if (st === 'no' && $('style').value === 'vfrc'){ $('style').value = 'full'; savePrefs(); }
+  if (st === 'no' && $('style').value === 'vfrc'){ $('style').value = 'full'; fillAlts(); savePrefs(); }
 }
 function pickDepFreq(){
   const k = depK(), a = AP[k];
@@ -986,7 +1012,7 @@ function ui(){
   $('btnShow').disabled = ph !== 'copied';
   const dest = destK() || $('dest').value.trim().toUpperCase();
   const lines = {
-    idle:   `${facName()}, ${shortTail()}, ${$('style').value === 'vfrc' ? 'VFR' : 'IFR'} to ${dest || '(destination)'}${$('dNoSid').checked && $('style').value !== 'vfrc' ? ', no SID, request radar vectors' : ''}.`,
+    idle:   `${facName()}, ${shortTail()}, ${$('style').value === 'vfrc' ? 'VFR' : 'IFR'} to ${dest || '(destination)'}${$('style').value === 'vfrc' && +$('alt').value ? ' at ' + (+$('alt').value).toLocaleString() : ''}${$('dNoSid').checked && $('style').value !== 'vfrc' ? ', no SID, request radar vectors' : ''}.`,
     ready:  `Ready to copy, ${shortTail()}.`,
     reading:'(copy the clearance)',
     copied: S.done ? '' : `Read back the clearance, ending with ${shortTail()}. Or "say again"${c && c.routeMode === 'tec' && c.expansion ? ', or "request full route"' : ''}.`
@@ -2285,9 +2311,18 @@ function setCopyMode(type){
 /* =====================================================================
    WIRING
    ===================================================================== */
+// v0.35: aircraft class shown as radio buttons; the hidden #cls select stays the value the rest of the code reads.
+$('clsRadios').innerHTML = [...$('cls').options].map(o =>
+  `<label><input type="radio" name="clsR" value="${o.value}">${esc(o.text)}</label>`).join('');
+function syncClsRadios(){ document.querySelectorAll('input[name=clsR]').forEach(r => { r.checked = r.value === $('cls').value; }); }
+document.querySelectorAll('input[name=clsR]').forEach(r => r.addEventListener('change', () => {
+  if (!r.checked || $('cls').value === r.value) return;
+  $('cls').value = r.value; $('cls').dispatchEvent(new Event('change'));
+}));
 // restore saved flight
 ['tail','prefix','dep','dest'].forEach(id => { if (PREFS[id]) $(id).value = PREFS[id]; });
 if (PREFS.cls && [...$('cls').options].some(o => o.value === PREFS.cls)) $('cls').value = PREFS.cls;
+syncClsRadios();
 
 let apTimer = null, depDirty = false;
 function onAirportsChanged(){
@@ -2301,13 +2336,13 @@ $('swapBtn').addEventListener('click', () => {   // v0.31: reverse the pair; dep
   const d = $('dep').value; $('dep').value = $('dest').value; $('dest').value = d;
   clearTimeout(apTimer); depDirty = true; onAirportsChanged();
 });
-$('cls').addEventListener('change', () => { fillRoutes(); resetCall(); savePrefs(); });
+$('cls').addEventListener('change', () => { syncClsRadios(); fillRoutes(); resetCall(); savePrefs(); });
 $('route').addEventListener('change', () => { S.userCustom = $('route').value === 'custom'; syncRouteBox(); resetCall(); savePrefs(); });
 $('myRoute').addEventListener('input', () => { fillAlts(); showRouteInfo(); $('dFreq').value = pickDepFreq(); if (S.phase !== 'idle') resetCall(); savePrefs(); });
-$('alt').addEventListener('change', () => { resetCall(); savePrefs(); });
+$('alt').addEventListener('change', () => { resetCall(); savePrefs(); if (S.phase === 'idle') ui(); });
 ['dFac','dCall'].forEach(id => $(id).addEventListener('input', () => { updateRadio(); ui(); }));
 ['tail','prefix'].forEach(id => $(id).addEventListener('input', () => { ui(); savePrefs(); }));
-$('style').addEventListener('change', () => { showGradInfo(); savePrefs(); if (S.phase === 'idle') ui(); });
+$('style').addEventListener('change', () => { showGradInfo(); fillAlts(); showRouteInfo(); savePrefs(); if (S.phase === 'idle') ui(); else resetCall(); });
 $('learn').addEventListener('change', savePrefs);
 $('dNoSid').addEventListener('change', () => { syncNoSid(); savePrefs(); if (S.phase !== 'idle') resetCall(); else ui(); });
 $('btnCall').addEventListener('click', onCall);
@@ -2529,7 +2564,7 @@ function importFromSearch(search){
   const dep = findAirport(qs.get('dep')), dest = findAirport(qs.get('dest'));
   if (qs.get('dep')) $('dep').value = dep || qs.get('dep');
   if (qs.get('dest')) $('dest').value = dest || qs.get('dest');
-  if (/^[QPMJ]$/.test(qs.get('cls') || '')) $('cls').value = qs.get('cls');
+  if (/^[QPMJ]$/.test(qs.get('cls') || '')){ $('cls').value = qs.get('cls'); syncClsRadios(); }
   if (dep && dest && rs.length){
     const routes = rs.map(s => {
       const f = s.split(';');
