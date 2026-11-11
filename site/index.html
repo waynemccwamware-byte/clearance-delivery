@@ -293,7 +293,7 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
 
   <div class="title-row">
     <h1>Clearance Delivery Trainer</h1>
-    <span class="ver mono">v0.37</span>
+    <span class="ver mono">v0.38</span>
   </div>
   <p class="purpose-line"><span class="purpose-label">Purpose:</span> Call Clearance Delivery, copy your IFR clearance in CRAFT shorthand, and read it back. Routes come from the FAA preferred-route and TEC database, plus real recent ATC clearances.</p>
 
@@ -2511,7 +2511,7 @@ $('faLink').addEventListener('click', e => {
 });
 
 /* =====================================================================
-   v0.25 ROUTE SYNC (netlify/functions/ffsync.js)
+   v0.25 ROUTE SYNC (netlify/functions/ffsync.mjs; current function format from v0.38)
    On iPhone, Claude's fill-in link opens in the Claude app's own browser, whose storage is separate from the
    home-screen Control Panel's, so routes cached there never reached the app (found 20-Oct-2026). Each device
    makes a sync code once; the Claude request carries it, Claude puts it back in the link (k=), and whichever

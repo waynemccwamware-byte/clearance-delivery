@@ -1,4 +1,4 @@
-// netlify/functions/ffsync.js  (Clearance Delivery Trainer v0.26)
+// netlify/functions/ffsync.mjs  (Clearance Delivery Trainer v0.26; v0.38 current function format)
 //
 // Keeps the ForeFlight routes a pilot brought back through Claude, and their last route pick, under a sync code,
 // so every browser context on a device sees them. Needed on iPhone: Claude's fill-in link opens in the Claude
@@ -13,21 +13,30 @@
 // (eventual consistency), so a pick saved seconds after the routes read the old, empty record and wrote it
 // back, wiping the routes. Reads also prefer the uncached edge URL when the function context provides one.
 //
+// v0.38 (10-Nov-2026): rewritten from the Lambda-compatible handler (ffsync.js) to Netlify's current function
+// format. The Lambda payload never carries the uncached edge URL (@netlify/blobs 11.1.9 connectLambda passes only
+// url and token), so v0.26's reads always fell back to the cached edge URL and an updated route pick could read
+// up to 60 s old. This format gets NETLIFY_BLOBS_CONTEXT with uncachedEdgeURL, as the official client reads it;
+// GETs go there (strong), PUTs to edgeURL; if uncachedEdgeURL is missing, reads fall back to the edge URL.
+// Response header x-blobs-read says which. Same URL, store, keys, requests and replies as before.
+//
 // The code (12 characters, no 0/O/1/I/L, as in Schedule's sync) is made by the app on each device and handed to
 // Claude in the request; Claude puts it back in the link (k=). Nothing else identifies the pilot.
-// Dependency-free on purpose: Netlify Blobs via the same edge protocol as nasr-freq.js / Schedule's sync.js.
+// Dependency-free on purpose: Netlify Blobs via the edge protocol, as Schedule's sync.mjs.
 
 const STORE_NAME = 'clearance-delivery-ffsync';
 const CODE_RE = /^[A-HJKMNP-Z2-9]{12}$/;
 const PAIR_RE = /^[A-Z0-9]{2,7}-[A-Z0-9]{2,7}$/;
 
-function getBlobsAuth(event) {
-  if (!event || !event.blobs || !event.headers) return {};
-  try {
-    const data = JSON.parse(Buffer.from(event.blobs, 'base64').toString('utf8'));
-    return { siteID: event.headers['x-nf-site-id'], token: data.token, edgeURL: data.url,
-             readURL: data.url_uncached || data.uncachedEdgeURL || data.uncached_url || data.url };
-  } catch (err) { return {}; }
+// Same source the @netlify/blobs client reads (getEnvironmentContext): base64 JSON.
+function getBlobsAuth(context) {
+  const raw = globalThis.netlifyBlobsContext
+    || (globalThis.Netlify && globalThis.Netlify.env && globalThis.Netlify.env.get('NETLIFY_BLOBS_CONTEXT'))
+    || (typeof process !== 'undefined' && process.env ? process.env.NETLIFY_BLOBS_CONTEXT : '');
+  let c = {};
+  if (typeof raw === 'string' && raw) { try { c = JSON.parse(Buffer.from(raw, 'base64').toString('utf8')); } catch (e) { c = {}; } }
+  return { siteID: c.siteID || (context && context.site && context.site.id), token: c.token, edgeURL: c.edgeURL,
+           readURL: c.uncachedEdgeURL || c.edgeURL, strong: !!c.uncachedEdgeURL };
 }
 async function blobsRequest(method, auth, key, body) {
   const base = method === 'get' ? auth.readURL : auth.edgeURL;
@@ -61,14 +70,15 @@ function cleanSel(s) {
 }
 const parse = t => { try { return t ? JSON.parse(t) : null; } catch (e) { return null; } };
 
-exports.handler = async (event) => {
-  const headers = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
-  const reply = (code, obj) => ({ statusCode: code, headers, body: JSON.stringify(obj) });
+export default async (req, context) => {
+  const auth = getBlobsAuth(context);
+  const headers = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json', 'Cache-Control': 'no-store',
+                    'x-blobs-read': auth.strong ? 'strong' : 'eventual' };
+  const reply = (code, obj) => new Response(JSON.stringify(obj), { status: code, headers });
   try {
-    const auth = getBlobsAuth(event);
     if (!(auth.siteID && auth.token && auth.edgeURL)) return reply(503, { error: 'storage unavailable' });
-    if (event.httpMethod === 'GET') {
-      const q = event.queryStringParameters || {};
+    if (req.method === 'GET') {
+      const q = Object.fromEntries(new URL(req.url).searchParams);
       const k = String(q.k || '');
       if (!CODE_RE.test(k)) return reply(400, { error: 'bad code' });
       const pairs = String(q.pairs || '').split(',').map(s => s.trim().toUpperCase()).filter(p => PAIR_RE.test(p)).slice(0, 6);
@@ -77,9 +87,10 @@ exports.handler = async (event) => {
       pairs.forEach((p, i) => { const e = parse(pairTxts[i]); if (e) out.pairs[p] = e; });
       return reply(200, out);
     }
-    if (event.httpMethod !== 'POST') return reply(405, { error: 'GET or POST' });
-    if ((event.body || '').length > 60000) return reply(413, { error: 'too large' });
-    let b; try { b = JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body || '{}'); } catch (e) { return reply(400, { error: 'bad json' }); }
+    if (req.method !== 'POST') return reply(405, { error: 'GET or POST' });
+    const raw = await req.text();
+    if (raw.length > 60000) return reply(413, { error: 'too large' });
+    let b; try { b = JSON.parse(raw || '{}'); } catch (e) { return reply(400, { error: 'bad json' }); }
     if (!CODE_RE.test(String(b.k || ''))) return reply(400, { error: 'bad code' });
     const done = [];
     if (b.pair && PAIR_RE.test(String(b.pair))) {
