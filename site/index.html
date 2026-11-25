@@ -278,6 +278,12 @@ canvas#pad{ display:block; width:100%; height:400px; touch-action:none; -webkit-
       else { var x = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); if (!x) return String(d || ''); y = +x[1]; m = +x[2] - 1; dd = +x[3]; }
       return (dd < 10 ? '0' : '') + dd + '-' + MON[lang][m] + '-' + y;
     },
+    // any 25-Nov-2026 in a string, in the current language (25-nov-2026)
+    dmy: function (str) {
+      if (!es) return String(str == null ? '' : str);
+      return String(str == null ? '' : str).replace(/\b(\d{1,2})-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{4})\b/g,
+        function (m, d, mo, y) { return d + '-' + MON.es[MON.en.indexOf(mo)] + '-' + y; });
+    },
     withLang: withLang,
     // Elements marked data-es="…" (innerHTML) or data-es-title, data-es-placeholder, … get their Spanish once.
     apply: function (root) {
